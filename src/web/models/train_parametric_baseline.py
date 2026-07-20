@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Train the Paragon parametric Cd baseline.
 
-The preferred MVP baseline is LightGBM, then XGBoost. If neither package is
-installed, the script falls back to scikit-learn RandomForestRegressor so the
-training path is still testable on a standard ML environment.
+RandomForest is the deterministic default because it is supported by the web
+runtime. LightGBM and XGBoost remain explicit opt-in alternatives.
 """
 
 from __future__ import annotations
@@ -54,9 +53,22 @@ def add_design_categories(data: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def select_model(random_state: int):
-    try:
-        from lightgbm import LGBMRegressor
+def select_model(random_state: int, requested_model: str = "random-forest"):
+    if requested_model == "random-forest":
+        return "RandomForest", RandomForestRegressor(
+            n_estimators=280,
+            min_samples_leaf=2,
+            random_state=random_state,
+            n_jobs=-1,
+        )
+
+    if requested_model == "lightgbm":
+        try:
+            from lightgbm import LGBMRegressor
+        except ImportError as exc:
+            raise RuntimeError(
+                "LightGBM was requested but is not installed. Install web/requirements-train.txt."
+            ) from exc
 
         return "LightGBM", LGBMRegressor(
             n_estimators=700,
@@ -66,11 +78,14 @@ def select_model(random_state: int):
             colsample_bytree=0.9,
             random_state=random_state,
         )
-    except Exception:
-        pass
 
-    try:
-        from xgboost import XGBRegressor
+    if requested_model == "xgboost":
+        try:
+            from xgboost import XGBRegressor
+        except ImportError as exc:
+            raise RuntimeError(
+                "XGBoost was requested but is not installed. Install web/requirements-train.txt."
+            ) from exc
 
         return "XGBoost", XGBRegressor(
             n_estimators=700,
@@ -81,15 +96,8 @@ def select_model(random_state: int):
             objective="reg:squarederror",
             random_state=random_state,
         )
-    except Exception:
-        pass
 
-    return "RandomForest", RandomForestRegressor(
-        n_estimators=280,
-        min_samples_leaf=2,
-        random_state=random_state,
-        n_jobs=-1,
-    )
+    raise ValueError(f"Unsupported model selection: {requested_model}")
 
 
 def load_xy(data_path: Path) -> Tuple[pd.DataFrame, pd.Series]:
@@ -104,12 +112,17 @@ def load_xy(data_path: Path) -> Tuple[pd.DataFrame, pd.Series]:
     return data[numeric_columns + CATEGORICAL_COLUMNS], data[TARGET_COLUMN]
 
 
-def train(data_path: Path, output_path: Path, random_state: int) -> dict:
+def train(
+    data_path: Path,
+    output_path: Path,
+    random_state: int,
+    requested_model: str = "random-forest",
+) -> dict:
     x, y = load_xy(data_path)
     x_train, x_test, y_train, y_test = train_test_split(
         x, y, test_size=0.2, random_state=random_state
     )
-    model_name, estimator = select_model(random_state)
+    model_name, estimator = select_model(random_state, requested_model)
     numeric_columns = [column for column in x.columns if column not in CATEGORICAL_COLUMNS]
     preprocessor = ColumnTransformer(
         [
@@ -155,9 +168,15 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--random-state", type=int, default=42)
+    parser.add_argument(
+        "--model",
+        choices=("random-forest", "lightgbm", "xgboost"),
+        default="random-forest",
+        help="Estimator to train. RandomForest is the serving-compatible default.",
+    )
     args = parser.parse_args()
 
-    summary = train(args.data, args.output, args.random_state)
+    summary = train(args.data, args.output, args.random_state, args.model)
     print(summary)
 
 

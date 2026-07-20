@@ -28,11 +28,18 @@ class MeshPointCloud:
         return len(self.points)
 
 
+# Bounding every numeric segment keeps malformed ASCII input from triggering
+# ambiguous, quadratic backtracking in Python's regex engine. STL vertices are
+# line-oriented, so anchoring the match also prevents partial numeric tokens.
+_COORDINATE_TOKEN = rb"[-+]?(?:\d{1,32}(?:\.\d{0,32})?|\.\d{1,32})(?:[eE][-+]?\d{1,3})?"
 _VERTEX_RE = re.compile(
-    rb"vertex\s+"
-    rb"([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+"
-    rb"([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+"
-    rb"([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)"
+    rb"(?m)^[ \t]*vertex[ \t]+("
+    + _COORDINATE_TOKEN
+    + rb")[ \t]+("
+    + _COORDINATE_TOKEN
+    + rb")[ \t]+("
+    + _COORDINATE_TOKEN
+    + rb")[ \t]*\r?$"
 )
 
 

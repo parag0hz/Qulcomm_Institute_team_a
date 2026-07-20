@@ -165,13 +165,13 @@ python -m pip install -r web/requirements-train.txt
 python web/models/train_parametric_baseline.py
 ```
 
-The script uses `ParametricModels/DrivAerNet_ParametricData.csv`, derives body and wheel categories from `Experiment`, and trains LightGBM if available, then XGBoost if available, then a scikit-learn RandomForest fallback. It writes:
+The script uses `ParametricModels/DrivAerNet_ParametricData.csv`, derives body and wheel categories from `Experiment`, and trains a scikit-learn RandomForest by default so the artifact can always be loaded by the web runtime. It writes:
 
 ```text
 web/artifacts/cfa_parametric_baseline.pkl
 ```
 
-The current local model schema is 23 numeric design parameters plus body and wheel categories. LightGBM and XGBoost are optional alternatives in the training script; the web service continues to expose the actual provider used for each prediction.
+The current local model schema is 23 numeric design parameters plus body and wheel categories. LightGBM and XGBoost are explicit alternatives via `--model lightgbm` or `--model xgboost`; when deploying one of those artifacts, install the selected estimator package in the serving environment as well. The web service continues to expose the actual model used for each prediction.
 
 ## Optional Vertex AI Provider
 
