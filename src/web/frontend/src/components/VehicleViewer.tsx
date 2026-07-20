@@ -756,7 +756,6 @@ function destroyRuntime(runtime: ViewerRuntime): void {
   disposeObject(runtime.scene);
   runtime.scene.clear();
   runtime.renderer.dispose();
-  runtime.renderer.forceContextLoss();
 }
 
 export const VehicleViewer = forwardRef<VehicleViewerHandle, VehicleViewerProps>(function VehicleViewer(
@@ -820,7 +819,17 @@ export const VehicleViewer = forwardRef<VehicleViewerHandle, VehicleViewerProps>
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return;
-    const runtime = createScene(canvas, host);
+    let runtime: ViewerRuntime;
+    try {
+      runtime = createScene(canvas, host);
+    } catch {
+      const message = "3D preview is unavailable because WebGL could not be initialized. Enable browser hardware acceleration or use a WebGL 2-capable browser.";
+      setLoading(false);
+      setFallbackMessage(message);
+      onLoadingChange?.(false);
+      onError?.(message);
+      return;
+    }
     runtimeRef.current = runtime;
     const startLoading = () => {
       setLoading(true);

@@ -1,5 +1,6 @@
-import { act, render, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 
 import type { DesignParameters, ParameterDefinition } from "../types";
@@ -13,7 +14,10 @@ interface RendererDouble {
   contextLost: boolean;
 }
 
-const rendererState = vi.hoisted(() => ({ instances: [] as RendererDouble[] }));
+const rendererState = vi.hoisted(() => ({
+  instances: [] as RendererDouble[],
+  initializationError: null as Error | null,
+}));
 
 vi.mock("three", async () => {
   const actual = await vi.importActual<typeof import("three")>("three");
@@ -26,7 +30,10 @@ vi.mock("three", async () => {
     toneMapping = actual.NoToneMapping;
     toneMappingExposure = 1;
     shadowMap = { enabled: false, type: actual.PCFShadowMap };
-    constructor() { rendererState.instances.push(this); }
+    constructor() {
+      if (rendererState.initializationError) throw rendererState.initializationError;
+      rendererState.instances.push(this);
+    }
     setPixelRatio() {}
     setSize() {}
     setAnimationLoop(loop: (() => void) | null) { this.loop = loop; }
@@ -104,9 +111,13 @@ const parameters: ParameterDefinition[] = NUMERIC_PARAMETER_NAMES.map((name) => 
   high_impact: false,
 }));
 
+beforeEach(() => {
+  rendererState.instances.length = 0;
+  rendererState.initializationError = null;
+});
+
 describe("VehicleViewer", () => {
   it("loads named GLB parts, morphs from the source geometry, switches wheels, and disposes", async () => {
-    rendererState.instances.length = 0;
     const onStatusChange = vi.fn();
     const view = render(
       <VehicleViewer
@@ -150,6 +161,47 @@ describe("VehicleViewer", () => {
 
     view.unmount();
     expect(renderer.disposed).toBe(true);
-    expect(renderer.contextLost).toBe(true);
+    expect(renderer.contextLost).toBe(false);
+  });
+
+  it("survives the StrictMode setup-cleanup-setup cycle without forcing context loss", async () => {
+    const onStatusChange = vi.fn();
+    const view = render(
+      <StrictMode>
+        <VehicleViewer
+          values={design}
+          parameters={parameters}
+          onStatusChange={onStatusChange}
+        />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledWith(expect.objectContaining({
+      referenceKind: "glb",
+    })));
+    expect(rendererState.instances).toHaveLength(2);
+    expect(rendererState.instances[0].disposed).toBe(true);
+    expect(rendererState.instances.every((renderer) => !renderer.contextLost)).toBe(true);
+
+    view.unmount();
+    expect(rendererState.instances[1].disposed).toBe(true);
+    expect(rendererState.instances[1].contextLost).toBe(false);
+  });
+
+  it("keeps the viewer mounted and reports a WebGL initialization failure", async () => {
+    rendererState.initializationError = new TypeError("Cannot read properties of null (reading 'precision')");
+    const onError = vi.fn();
+
+    render(
+      <VehicleViewer
+        values={design}
+        parameters={parameters}
+        onError={onError}
+      />,
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent("WebGL could not be initialized");
+    expect(screen.getByTestId("vehicle-viewer")).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("WebGL could not be initialized"));
   });
 });

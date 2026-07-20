@@ -5,6 +5,7 @@ import { DesignControls } from "./components/DesignControls";
 import { Header } from "./components/Header";
 import { ResultsPanel } from "./components/ResultsPanel";
 import type { VehicleViewerHandle } from "./components/VehicleViewer";
+import { ViewerErrorBoundary } from "./components/ViewerErrorBoundary";
 import {
   selectCanRedo,
   selectCanUndo,
@@ -478,17 +479,19 @@ export default function App() {
             </div>
           </div>
           <div className="canvas-wrap">
-            <Suspense fallback={<div className="viewer-host"><div className="loading-overlay"><span />Loading 3D workspace</div></div>}>
-              <VehicleViewer
-                ref={viewerRef}
-                values={current}
-                parameters={schema.parameters}
-                wheelTreatment={current.Wheels}
-                activeParameter={activeParameter}
-                dimensionsVisible={dimensionsVisible && mode === "parameters"}
-                importedPoints={importedPoints}
-              />
-            </Suspense>
+            <ViewerErrorBoundary>
+              <Suspense fallback={<div className="viewer-host"><div className="loading-overlay"><span />Loading 3D workspace</div></div>}>
+                <VehicleViewer
+                  ref={viewerRef}
+                  values={current}
+                  parameters={schema.parameters}
+                  wheelTreatment={current.Wheels}
+                  activeParameter={activeParameter}
+                  dimensionsVisible={dimensionsVisible && mode === "parameters"}
+                  importedPoints={importedPoints}
+                />
+              </Suspense>
+            </ViewerErrorBoundary>
             <div className="canvas-overlay top-left">
               <span>{mode === "stl" && stlResult ? stlResult.file.name.toUpperCase() : `DRIVAER FASTBACK · ${current.Wheels.toUpperCase()}`}</span>
               <small>Drag to rotate · scroll to zoom</small>

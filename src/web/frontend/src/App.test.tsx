@@ -22,6 +22,7 @@ const apiMocks = vi.hoisted(() => ({
   copilot: vi.fn(),
   testVertex: vi.fn(),
 }));
+const viewerMockState = vi.hoisted(() => ({ shouldThrow: false }));
 
 vi.mock("./api", () => ({ api: apiMocks }));
 vi.mock("./components/VehicleViewer", async () => {
@@ -31,6 +32,7 @@ vi.mock("./components/VehicleViewer", async () => {
       props: { values: DesignParameters; wheelTreatment: string; importedPoints?: readonly unknown[] },
       ref: React.ForwardedRef<unknown>,
     ) {
+      if (viewerMockState.shouldThrow) throw new Error("Unexpected viewer failure");
       React.useImperativeHandle(ref, () => ({
         setView: vi.fn(),
         resetView: vi.fn(),
@@ -114,6 +116,7 @@ const status: StatusResponse = {
 };
 
 beforeEach(() => {
+  viewerMockState.shouldThrow = false;
   localStorage.clear();
   useWorkspaceStore.setState({
     current: null,
@@ -133,6 +136,17 @@ beforeEach(() => {
 });
 
 describe("Paragon App integration", () => {
+  it("keeps the dashboard visible when the 3D viewer throws unexpectedly", async () => {
+    viewerMockState.shouldThrow = true;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    render(<App />);
+
+    expect(await screen.findByText("Explore your concept")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("3D preview unavailable");
+    expect(screen.getByText("Aerodynamic result")).toBeInTheDocument();
+  });
+
   it("loads the schema and sends the same slider design to the viewer and prediction API", async () => {
     render(<App />);
 
