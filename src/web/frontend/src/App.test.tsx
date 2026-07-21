@@ -154,7 +154,9 @@ describe("Paragon App integration", () => {
     expect(await screen.findByText("0.2440")).toBeInTheDocument();
     apiMocks.predict.mockClear();
 
-    fireEvent.change(screen.getByLabelText("Car length value"), { target: { value: "42" } });
+    const lengthInput = screen.getByLabelText("Car length value");
+    fireEvent.change(lengthInput, { target: { value: "42" } });
+    fireEvent.blur(lengthInput);
 
     expect(screen.getByTestId("vehicle-viewer")).toHaveAttribute("data-length", "42");
     expect(screen.getByRole("button", { name: "Save variant" })).toBeDisabled();
