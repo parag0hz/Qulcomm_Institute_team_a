@@ -274,8 +274,10 @@ def demo_cloud(design_id: str) -> Dict[str, object] | None:
     clouds, meta = bundle
     for index, entry in enumerate(meta):
         if entry.get("id") == design_id:
-            # 소수 4자리면 밀리미터 이하 — 화면 표시에 충분하고 전송량은 절반이다.
-            points = np.round(clouds[index], 4).tolist()
+            # float32에 그대로 round를 걸면 float64로 올라갈 때 잔여 소수가
+            # 되살아나 JSON이 3배 부풀어 오른다(2.2973 → 2.297300100326538).
+            # 먼저 float64로 올린 뒤 밀리미터(3자리)로 끊는다 — 표시엔 충분하다.
+            points = np.round(clouds[index].astype(np.float64), 3).tolist()
             return {
                 "id": design_id,
                 "body_type": entry.get("body_type"),
