@@ -7,6 +7,7 @@ import type {
   OptimizationRequest,
   OptimizationResponse,
   ParameterSchema,
+  PointNetDemoResponse,
   PredictionResponse,
   StatusResponse,
   StlPredictionResponse,
@@ -153,6 +154,12 @@ export const api = {
 
   getParameters: (signal?: AbortSignal) =>
     requestJson<ParameterSchema>("/api/parameters", { signal }),
+
+  getPointNetDemo: (signal?: AbortSignal) =>
+    requestJson<PointNetDemoResponse>("/api/demo/pointnet", {
+      signal,
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
 
   predict: (parameters: DesignParameters, signal?: AbortSignal) =>
     requestJson<PredictionResponse>("/api/predict/parameters", {

@@ -10,6 +10,7 @@ interface HeaderProps {
   onSaveVariant: () => void;
   onReset: () => void;
   onExport: () => void;
+  onOpenBenchmark: () => void;
 }
 
 export function Header({
@@ -24,6 +25,7 @@ export function Header({
   onSaveVariant,
   onReset,
   onExport,
+  onOpenBenchmark,
 }: HeaderProps) {
   return (
     <header className="topbar">
@@ -41,6 +43,7 @@ export function Header({
         <button className="icon-button" type="button" title="Undo" disabled={!canUndo} onClick={onUndo}>↶</button>
         <button className="icon-button" type="button" title="Redo" disabled={!canRedo} onClick={onRedo}>↷</button>
         <button id="saveVariantHeader" className="ghost-button" type="button" disabled={!canSaveVariant} onClick={onSaveVariant}>Save variant</button>
+        <button className="ghost-button" type="button" onClick={onOpenBenchmark}>Held-out benchmark</button>
         <button className="ghost-button topbar-reset" type="button" onClick={onReset}>Reset current</button>
         <button className="dark-button topbar-export" type="button" onClick={onExport}>Export design</button>
       </div>

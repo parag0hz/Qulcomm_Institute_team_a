@@ -271,3 +271,24 @@ export interface ApiErrorPayload {
   fallback_provider?: string;
   [key: string]: unknown;
 }
+
+export interface PointNetDemoItem {
+  id: string;
+  body_type: string;
+  true_cd: number | null;
+  /** 분포 밖으로 판단되면 null — 그때는 raw_cd만 참고용으로 노출한다. */
+  cd: number | null;
+  raw_cd: number;
+  trusted: boolean;
+  warnings: string[];
+  error_counts?: number;
+}
+
+export interface PointNetDemoResponse {
+  available: boolean;
+  reason?: string;
+  point_count?: number;
+  mean_error_counts?: number | null;
+  items: PointNetDemoItem[];
+  note?: string;
+}
