@@ -1,0 +1,28 @@
+# 이 디렉토리는 $HOME 루트의 DiffKD_ECG 저장소 안에 얹혀 있다.
+# 데이터/체크포인트가 그쪽 브랜치로 딸려 들어가지 않도록 차단.
+data/
+outputs/
+runs/
+checkpoints/
+*.tar
+*.paddle_tensor
+*.npz
+*.pth
+*.pt
+__pycache__/
+.ipynb_checkpoints/
+wandb/
+external/
+DrivAerNet/
+
+# --- 공개 저장소 푸시 대비 (2026-07-21) ---
+# AutoML 실험 산출물 19GB (개별 파일 100MB 초과 → GitHub 거부)
+AutogluonModels/
+*.pkl
+# 팀 발표자료 — 저장소에 올리지 않음
+*.pptx
+# 논문·발표 PDF (저작권)
+*.pdf
+# 그림/애니메이션 산출물
+*.gif
+*.png

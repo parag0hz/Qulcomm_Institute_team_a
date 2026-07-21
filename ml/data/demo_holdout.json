@@ -1,0 +1,64 @@
+{
+ "purpose": "데모 전용. 학습/검증/테스트 어디에도 사용 금지 (피드백 #6)",
+ "n": 5,
+ "selection_rule": "CSV∩포인트클라우드 교집합에서 차종별 Cd 분위수 기반 결정적 선정",
+ "alloc": {
+  "Fastback": 2,
+  "Estate": 2,
+  "Notchback": 1
+ },
+ "ids": [
+  "F_S_WWS_WM_587",
+  "N_S_WW_WM_430",
+  "E_S_WW_WM_654",
+  "F_S_WWS_WM_347",
+  "E_S_WWC_WM_210"
+ ],
+ "items": [
+  {
+   "id": "F_S_WWS_WM_587",
+   "body_type": "Fastback",
+   "true_cd": 0.22847,
+   "original_split": "train",
+   "pointcloud_file": "F_S_WWS_WM_587.paddle_tensor",
+   "has_csv": true,
+   "has_pointcloud": true
+  },
+  {
+   "id": "N_S_WW_WM_430",
+   "body_type": "Notchback",
+   "true_cd": 0.24498,
+   "original_split": "train",
+   "pointcloud_file": "N_S_WW_WM_430.paddle_tensor",
+   "has_csv": true,
+   "has_pointcloud": true
+  },
+  {
+   "id": "E_S_WW_WM_654",
+   "body_type": "Estate",
+   "true_cd": 0.2559,
+   "original_split": "train",
+   "pointcloud_file": "E_S_WW_WM_654.paddle_tensor",
+   "has_csv": true,
+   "has_pointcloud": true
+  },
+  {
+   "id": "F_S_WWS_WM_347",
+   "body_type": "Fastback",
+   "true_cd": 0.26195,
+   "original_split": "val",
+   "pointcloud_file": "F_S_WWS_WM_347.paddle_tensor",
+   "has_csv": true,
+   "has_pointcloud": true
+  },
+  {
+   "id": "E_S_WWC_WM_210",
+   "body_type": "Estate",
+   "true_cd": 0.28923,
+   "original_split": "train",
+   "pointcloud_file": "E_S_WWC_WM_210.paddle_tensor",
+   "has_csv": true,
+   "has_pointcloud": true
+  }
+ ]
+}

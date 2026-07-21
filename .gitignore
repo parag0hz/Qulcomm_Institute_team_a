@@ -26,3 +26,18 @@ src/web/artifacts/
 # Env
 .env
 .env.local
+
+# --- ml/ 산출물 (대용량, 저장소 미포함) ---
+ml/data/*
+!ml/data/demo_holdout.json
+ml/outputs/
+ml/AutogluonModels/
+ml/wandb/
+ml/external/
+ml/DrivAerNet/
+*.pkl
+*.npz
+*.pt
+*.pth
+*.tar
+*.paddle_tensor
