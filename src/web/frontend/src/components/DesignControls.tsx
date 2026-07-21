@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { DesignParameters, ParameterDefinition, ParameterSchema } from "../types";
 
@@ -20,6 +21,12 @@ interface DesignControlsProps {
 
 const format = (value: number) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
+// Design values carry CSV precision (3.42508), which reads as noise in an input
+// box. Round for display only — the underlying value stays untouched unless the
+// user actually edits the field. No locale separators: they are invalid in
+// <input type="number">.
+const formatEditable = (value: number) => String(Number(value.toFixed(2)));
+
 function ParameterControl({
   parameter,
   value,
@@ -37,6 +44,17 @@ function ParameterControl({
   onFocus: () => void;
   onToggleLock: () => void;
 }) {
+  // Hold keystrokes locally so a half-typed value ("4" on the way to "4200") is
+  // not clamped to the minimum on every change. Commit on blur or Enter.
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commitDraft = () => {
+    if (draft === null) return;
+    const parsed = Number(draft);
+    if (draft.trim() !== "" && Number.isFinite(parsed)) onChange(parsed);
+    setDraft(null);
+  };
+
   return (
     <div className={`parameter-control ${active ? "active" : ""}`} data-control={parameter.name} onFocus={onFocus}>
       <div className="parameter-head">
@@ -45,12 +63,16 @@ function ParameterControl({
         <input
           className="parameter-number"
           type="number"
-          value={value}
+          value={draft ?? formatEditable(value)}
           min={parameter.min}
           max={parameter.max}
           step={parameter.step}
           aria-label={`${parameter.label} value`}
-          onChange={(event) => onChange(Number(event.target.value))}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commitDraft();
+          }}
         />
       </div>
       <div className="slider-row">
