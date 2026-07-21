@@ -12,6 +12,10 @@ COPY src/package.json src/package-lock.json ./
 RUN npm ci
 
 COPY src/web/frontend ./web/frontend
+# src/styles.css가 `@import "../../cfa_service/static/styles.css"`로 백엔드의
+# 디자인 시스템 스타일시트를 가져오므로 빌드 단계에도 함께 있어야 한다.
+COPY src/web/cfa_service/static ./web/cfa_service/static
+
 RUN npm run build:web
 
 
