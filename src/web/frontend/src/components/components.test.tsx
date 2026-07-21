@@ -113,10 +113,46 @@ describe("DesignControls", () => {
       onStlUpload={vi.fn()}
     />);
 
-    fireEvent.change(screen.getByLabelText("Car length value"), { target: { value: "42" } });
+    const lengthInput = screen.getByLabelText("Car length value");
+    fireEvent.change(lengthInput, { target: { value: "42" } });
+    fireEvent.blur(lengthInput);
 
     expect(onParameterChange).toHaveBeenCalledWith("A_Car_Length", 42);
     expect(screen.getByText(/combination was not present in training/i)).toBeInTheDocument();
+  });
+
+  it("lets a value be typed through without clamping every keystroke", () => {
+    const onParameterChange = vi.fn();
+    render(<DesignControls
+      schema={schema}
+      design={design}
+      activeParameter="A_Car_Length"
+      locked={[]}
+      mode="parameters"
+      stlBusy={false}
+      onModeChange={vi.fn()}
+      onParameterChange={onParameterChange}
+      onCategoryChange={vi.fn()}
+      onPreset={vi.fn()}
+      onFocus={vi.fn()}
+      onToggleLock={vi.fn()}
+      onStlUpload={vi.fn()}
+    />);
+
+    const lengthInput = screen.getByLabelText("Car length value");
+
+    // "4" is below the minimum on the way to "42" — it must not be committed
+    // (and clamped) mid-edit, which previously made direct entry impossible.
+    fireEvent.change(lengthInput, { target: { value: "4" } });
+    expect(onParameterChange).not.toHaveBeenCalled();
+    expect(lengthInput).toHaveValue(4);
+
+    fireEvent.change(lengthInput, { target: { value: "42" } });
+    expect(onParameterChange).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(lengthInput, { key: "Enter" });
+    expect(onParameterChange).toHaveBeenCalledTimes(1);
+    expect(onParameterChange).toHaveBeenCalledWith("A_Car_Length", 42);
   });
 });
 

@@ -196,7 +196,33 @@ def load_parameter_schema(csv_path: Path = PARAMETRIC_DATA_PATH) -> Dict[str, ob
         ],
     }
     schema["presets"] = _build_presets(csv_path, parameters)
+    _apply_in_domain_defaults(schema)
     return schema
+
+
+def _apply_in_domain_defaults(schema: Dict[str, object]) -> None:
+    """Seed the opening design from a real observed sample.
+
+    Each parameter's median is a sensible per-column default, but combining 23 of
+    them lands on a point no sample actually occupies, so the studio's very first
+    prediction reports an `outside` domain and shows a warning before the user has
+    touched anything. Reusing the representative Fastback row keeps that first
+    screen inside the observed domain. The presets are built beforehand, so
+    "Dataset median" keeps its original per-column meaning.
+    """
+
+    presets = schema.get("presets") or []
+    seed = next((preset for preset in presets if preset.get("id") == "fastback"), None)
+    if seed is None:
+        return
+
+    design = seed.get("design") or {}
+    for parameter in schema["parameters"]:
+        value = _safe_float(design.get(parameter["name"]))
+        if value is None:
+            continue
+        bounded = min(parameter["max"], max(parameter["min"], value))
+        parameter["default"] = round(bounded, 5)
 
 
 def model_status(model_path: Path = DEFAULT_MODEL_PATH) -> Dict[str, object]:
