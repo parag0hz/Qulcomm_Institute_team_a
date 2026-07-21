@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
+import "./styles.css";
 import { api } from "./api";
 import { DesignControls } from "./components/DesignControls";
 import { Header } from "./components/Header";
