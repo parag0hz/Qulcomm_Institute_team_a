@@ -33,6 +33,7 @@ from .predictor import (
     provider_status,
     test_vertex_provider,
 )
+from .pointnet import demo_predictions, pointnet_status
 from .schemas import CopilotRequest, DesignParameters, OptimizeRequest, VertexTestRequest
 from .stl import parse_stl_bytes
 
@@ -177,6 +178,7 @@ def get_status() -> dict[str, Any]:
         "trained_model_connected": status["connected"],
         "model_metrics": status["metrics"],
         "providers": provider_status(),
+        "pointnet": pointnet_status(),
         "copilot": copilot_status(),
         "input_schema": {
             "numeric_features": list(stats.feature_columns),
@@ -184,6 +186,17 @@ def get_status() -> dict[str, Any]:
         },
         "dataset": stats.public_dict(),
     }
+
+
+@app.get("/api/demo/pointnet")
+async def get_pointnet_demo() -> dict[str, Any]:
+    """홀드아웃 차량에 대한 라이브 PointNet 추론.
+
+    사전 계산된 값을 되돌려주는 게 아니라 요청마다 실제로 모델을 돌린다.
+    추론은 CPU 바운드라 이벤트 루프를 막지 않도록 스레드풀로 넘긴다.
+    """
+
+    return await run_in_threadpool(demo_predictions)
 
 
 @app.get("/api/parameters")

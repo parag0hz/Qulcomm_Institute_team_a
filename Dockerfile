@@ -35,6 +35,10 @@ RUN pip install --no-cache-dir -r web/requirements-web.txt
 # 애플리케이션 소스 (ParametricModels CSV, GLB 에셋 포함)
 COPY src/ ./
 
+# PointNet 서빙 자산(ONNX + 데모 홀드아웃 점군). 서비스 트리 안에 두어
+# 저장소 레이아웃과 무관하게 같은 경로에서 로드된다.
+COPY ml/models ./web/cfa_service/models
+
 # 스테이지 1에서 만든 SPA 번들을 FastAPI가 서빙하는 경로에 배치
 COPY --from=frontend /app/web/frontend/dist ./web/frontend/dist
 
