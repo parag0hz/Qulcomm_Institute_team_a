@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { DesignControls } from "./components/DesignControls";
 import { Header } from "./components/Header";
+import { HoldoutBenchmark } from "./components/HoldoutBenchmark";
 import { ResultsPanel } from "./components/ResultsPanel";
 import type { VehicleViewerHandle } from "./components/VehicleViewer";
 import { ViewerErrorBoundary } from "./components/ViewerErrorBoundary";
@@ -89,6 +90,7 @@ function stlDisplayPrediction(result: StlPredictionResponse): PredictionResponse
 }
 
 export default function App() {
+  const [benchmarkOpen, setBenchmarkOpen] = useState(false);
   const [schema, setSchema] = useState<ParameterSchema | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
@@ -431,6 +433,7 @@ export default function App() {
         onUndo={() => { commitDraft(); undo(); }}
         onRedo={() => { clearHistoryCommit(); draftDesignRef.current = null; setDraftDesign(null); redo(); }}
         onSaveVariant={saveCurrentVariant}
+        onOpenBenchmark={() => setBenchmarkOpen(true)}
         onReset={() => {
           clearHistoryCommit();
           draftDesignRef.current = null;
@@ -554,6 +557,7 @@ export default function App() {
       {requestError && <div className="request-error" role="alert"><span>{requestError}</span><button type="button" onClick={() => setRequestError("")}>×</button></div>}
       {activeDefinition && <span className="sr-only" aria-live="polite">Editing {activeDefinition.label}</span>}
       {toast && <div className="toast visible" role="status">{toast}</div>}
+      <HoldoutBenchmark open={benchmarkOpen} onClose={() => setBenchmarkOpen(false)} />
     </>
   );
 }
