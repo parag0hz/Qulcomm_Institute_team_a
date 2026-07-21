@@ -2,6 +2,8 @@
 
 **Predict automotive drag coefficient (Cd) in seconds, not weeks.**
 
+**▶ [Live demo](https://qulcomm-institute-team-a.onrender.com/)** — free instance, so the first request after idle takes ~1 minute to wake.
+
 CFD is the standard way to measure aerodynamic drag, and it is slow and expensive — days to weeks of supercomputer time per high-fidelity design. Building the DrivAerNet++ dataset alone took 2,880 CPU cores and 39 TB of storage. That cost makes the thing designers actually need impossible: rapidly comparing many candidate shapes in early-stage design.
 
 CFA replaces that inner loop with a learned surrogate. Upload a 3D model or move a slider, get a Cd estimate immediately. It is **not** a CFD replacement — it is the fast pre-filter that runs *before* CFD.
