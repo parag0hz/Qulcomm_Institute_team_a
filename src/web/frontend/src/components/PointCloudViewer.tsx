@@ -2,26 +2,27 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 /**
- * 모델이 실제로 보는 것을 그대로 화면에 띄운다.
+ * Renders exactly what the model receives: 2,048 raw points.
  *
- * 차체 렌더링이 아니라 2,048개의 점 — 이게 PointNet의 입력 전부다. 관객이
- * "이 점들만 보고 항력을 맞힌다고?"라고 느끼는 순간이 이 데모의 핵심이라,
- * 매끄러운 메시로 미화하지 않고 점을 점으로 보여준다.
+ * No surfacing, no mesh — the claim of this project is that drag can be read
+ * from this sparse a description of a shape, and the audience should be able to
+ * verify that with their own eyes.
  */
 interface PointCloudViewerProps {
   points: number[][] | null;
   busy?: boolean;
 }
 
+const FOV = 34;
+
 export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const cloudRef = useRef<THREE.Points | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const spinRef = useRef(true);
-  // 점군마다 크기·위치가 다르므로 카메라를 하드코딩하지 않고 bbox에서 계산한다.
-  const frameRef = useRef({ cx: 1.5, cy: 0, cz: 0.6, radius: 7 });
+  // Framing is derived from the cloud itself so every body type fills the frame.
+  const fitRef = useRef({ cx: 1.5, cy: 0, cz: 0.6, radius: 3.2 });
 
-  // 씬은 한 번만 만들고, 점군만 갈아 끼운다.
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -29,25 +30,26 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 200);
     camera.up.set(0, 0, 1);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // The canvas must be laid out by CSS, not by its intrinsic pixel buffer —
+    // otherwise a devicePixelRatio of 2 makes it twice its container.
+    renderer.domElement.style.display = "block";
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
     host.appendChild(renderer.domElement);
 
-    // 바닥 그리드 — 점군이 공중에 뜬 게 아니라 지면 위 차량임을 알려준다.
-    const grid = new THREE.GridHelper(9, 18, 0x2a3a44, 0x18242b);
+    const grid = new THREE.GridHelper(14, 28, 0x2b3a44, 0x1a242b);
     grid.rotation.x = Math.PI / 2;
     scene.add(grid);
-
-    const pivot = new THREE.Group();
-    scene.add(pivot);
 
     let frame = 0;
     let dragging = false;
     let lastX = 0;
-    let yaw = 0.6;
+    let yaw = 0.72;
 
     const onDown = (event: PointerEvent) => {
       dragging = true;
@@ -69,7 +71,8 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     renderer.domElement.addEventListener("pointerleave", onUp);
 
     const resize = () => {
-      const { clientWidth: w, clientHeight: h } = host;
+      const w = host.clientWidth;
+      const h = host.clientHeight;
       if (!w || !h) return;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
@@ -81,12 +84,19 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
 
     const tick = () => {
       frame = requestAnimationFrame(tick);
-      if (spinRef.current) yaw += 0.0032;
-      const { cx, cy, cz, radius } = frameRef.current;
+      if (spinRef.current) yaw += 0.0026;
+
+      const { cx, cy, cz, radius } = fitRef.current;
+      // Fit the bounding sphere in whichever axis is tighter, so a wide panel
+      // and a narrow one both show the whole car.
+      const vFov = (FOV * Math.PI) / 180;
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+      const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.12;
+
       camera.position.set(
-        cx + Math.cos(yaw) * radius,
-        cy + Math.sin(yaw) * radius,
-        cz + radius * 0.34,
+        cx + Math.cos(yaw) * distance * 0.94,
+        cy + Math.sin(yaw) * distance * 0.94,
+        cz + distance * 0.3,
       );
       camera.lookAt(cx, cy, cz);
       renderer.render(scene, camera);
@@ -110,7 +120,6 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     };
   }, []);
 
-  // 점군 교체
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
@@ -131,31 +140,25 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.computeBoundingSphere();
 
-    const material = new THREE.PointsMaterial({
-      size: 0.05,
-      color: 0x4fd8c8,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0.95,
-    });
-
-    geometry.computeBoundingBox();
-    const box = geometry.boundingBox;
-    if (box) {
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
-      // 가장 긴 변이 화면에 여유 있게 들어오는 거리. 시야각 38도 기준.
-      const span = Math.max(size.x, size.y, size.z);
-      frameRef.current = {
-        cx: center.x,
-        cy: center.y,
-        cz: center.z * 0.9,
-        radius: span * 1.45,
+    const sphere = geometry.boundingSphere;
+    if (sphere) {
+      fitRef.current = {
+        cx: sphere.center.x,
+        cy: sphere.center.y,
+        cz: sphere.center.z * 0.85,
+        radius: sphere.radius,
       };
     }
+
+    const material = new THREE.PointsMaterial({
+      size: 0.042,
+      color: 0xdbe7ef,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.92,
+    });
 
     const cloud = new THREE.Points(geometry, material);
     scene.add(cloud);
@@ -166,7 +169,7 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
   return (
     <div className={`cloud-stage ${busy ? "is-busy" : ""}`}>
       <div className="cloud-canvas" ref={hostRef} />
-      <span className="cloud-hint">드래그해서 돌려보세요 · 2,048 points</span>
+      <span className="cloud-hint">Drag to rotate · 2,048 points</span>
     </div>
   );
 }

@@ -25,7 +25,7 @@ function LiveDemo() {
   const abortRef = useRef<AbortController | null>(null);
 
   const message = (cause: unknown) =>
-    cause instanceof Error && cause.message ? cause.message : "서버에 연결하지 못했습니다.";
+    cause instanceof Error && cause.message ? cause.message : "Could not reach the server.";
 
   // 목록을 받아 첫 차량을 자동 선택한다.
   useEffect(() => {
@@ -93,14 +93,14 @@ function LiveDemo() {
         {inferring && (
           <div className="stage-overlay" role="status">
             <span className="spinner" aria-hidden="true" />
-            추론 중입니다…
+            Running inference…
           </div>
         )}
       </div>
 
       <aside className="stage-side">
         <div className="stage-block">
-          <p className="stage-label">학습에 쓰이지 않은 차량</p>
+          <p className="stage-label">Never seen during training</p>
           <div className="car-chips">
             {cars.map((car) => (
               <button
@@ -113,7 +113,7 @@ function LiveDemo() {
                 <small>{car.id.split("_").pop()}</small>
               </button>
             ))}
-            {!cars.length && !error && <span className="stage-muted">불러오는 중…</span>}
+            {!cars.length && !error && <span className="stage-muted">Loading…</span>}
           </div>
         </div>
 
@@ -123,7 +123,7 @@ function LiveDemo() {
           disabled={!activeId || inferring || loadingCloud}
           onClick={() => void infer()}
         >
-          {inferring ? "추론 중입니다…" : "이 형상으로 추론하기"}
+          {inferring ? "Running inference…" : "Run inference on this shape"}
         </button>
 
         {error && <div className="stage-error">{error}</div>}
@@ -131,29 +131,29 @@ function LiveDemo() {
         {result ? (
           <div className="stage-result">
             <div className="result-row">
-              <span>모델 예측</span>
-              <strong>{result.trusted ? result.cd?.toFixed(4) : "분포 밖"}</strong>
+              <span>Model prediction</span>
+              <strong>{result.trusted ? result.cd?.toFixed(4) : "Out of distribution"}</strong>
             </div>
             <div className="result-row">
-              <span>실제 CFD 값</span>
+              <span>Actual (CFD)</span>
               <strong className="muted">{result.true_cd?.toFixed(4)}</strong>
             </div>
             <div className="result-row highlight">
-              <span>오차</span>
+              <span>Error</span>
               <strong className={(result.error_counts ?? 0) < 5 ? "good" : "warn"}>
                 {result.error_counts?.toFixed(2)} counts
               </strong>
             </div>
             <p className="stage-foot">
-              추론 {result.inference_ms.toFixed(1)}ms · 1 count = 0.001 Cd · 5 counts 이하면
-              대체모델로 통용되는 정확도입니다.
+              {result.inference_ms.toFixed(1)} ms of inference · 1 count = 0.001 Cd · under 5 counts is the
+              accuracy a surrogate model is expected to reach.
             </p>
           </div>
         ) : (
           <p className="stage-foot">
             {active
-              ? `${active.body_type} 차체 · ${active.point_count.toLocaleString()}개 점. 이 좌표만이 모델의 입력입니다.`
-              : "차량을 고르면 모델이 보는 점군이 그대로 표시됩니다."}
+              ? `${active.body_type} body · ${active.point_count.toLocaleString()} points. These coordinates are the entire input.`
+              : "Pick a vehicle to see the point cloud the model reads."}
           </p>
         )}
       </aside>
@@ -170,18 +170,18 @@ export function DemoPage() {
           <span>Paragon</span>
         </a>
         <a className="pill dark sm" href={STUDIO_URL}>
-          스튜디오 열기
+          Open the studio
         </a>
       </nav>
 
       {/* 데모를 맨 위에. 설명보다 먼저 보여준다. */}
       <header className="demo-section demo-hero">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">3D 형상으로 공기저항 예측</p>
-          <h1 className="demo-h1">이 점들만 보고, 항력을 맞힙니다.</h1>
+          <p className="demo-eyebrow">Drag prediction from 3D shape</p>
+          <h1 className="demo-h1">It reads drag from nothing but these points.</h1>
           <p className="demo-lede">
-            CFD 시뮬레이션은 설계 하나에 며칠에서 몇 주가 걸립니다. Paragon은 차체 표면에서 뽑은
-            2,048개의 점만으로 같은 값을 밀리초 만에 추정합니다.
+            A CFD run takes days to weeks per design. Paragon estimates the same coefficient from
+            2,048 points sampled off the body surface, in milliseconds.
           </p>
           <LiveDemo />
         </div>
@@ -190,31 +190,30 @@ export function DemoPage() {
       {/* 방금 무슨 일이 있었는지 */}
       <section className="demo-section tinted">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">방금 일어난 일</p>
-          <h2 className="demo-h2">사전에 계산해둔 값이 아닙니다.</h2>
+          <p className="demo-eyebrow">What just happened</p>
+          <h2 className="demo-h2">Nothing above was precomputed.</h2>
           <div className="demo-grid cols-3">
             <div className="demo-card step-card">
               <span className="step-no">1</span>
-              <h3>처음 보는 차량</h3>
+              <h3>A car it has never seen</h3>
               <p>
-                이 5대는 학습과 검증 어디에도 쓰이지 않도록 처음부터 빼두었습니다. 모델에게는
-                방금이 첫 대면입니다.
+                These five were held out of training and validation from the very start. The model met
+                them for the first time just now.
               </p>
             </div>
             <div className="demo-card step-card">
               <span className="step-no">2</span>
-              <h3>점 2,048개가 입력의 전부</h3>
+              <h3>2,048 points, nothing else</h3>
               <p>
-                화면에 보이는 좌표를 그대로 신경망에 넣습니다. 사진도, 도면도, 설계 수치도 쓰지
-                않습니다.
+                The coordinates on screen go straight into the network. No images, no drawings, no design
+                parameters.
               </p>
             </div>
             <div className="demo-card step-card">
               <span className="step-no">3</span>
-              <h3>정답과 나란히</h3>
+              <h3>Checked against the truth</h3>
               <p>
-                비교 대상인 실제 Cd는 슈퍼컴퓨터로 돌린 CFD 결과입니다. 그 차이를 그대로
-                보여줍니다.
+                The reference value comes from a full CFD simulation. We show the gap as it is.
               </p>
             </div>
           </div>
@@ -224,11 +223,11 @@ export function DemoPage() {
       {/* 왜 형상인가 */}
       <section className="demo-section">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">왜 형상이어야 하는가</p>
-          <h2 className="demo-h2">설계 수치만으로는 왜건에서 무너집니다.</h2>
+          <p className="demo-eyebrow">Why shape</p>
+          <h2 className="demo-h2">Design numbers break down on wagons.</h2>
           <p className="demo-lede">
-            길이·폭·각도 같은 파라미터로도 예측은 됩니다. 다만 차체 형식이 바뀌면 흔들리고,
-            에스테이트에서는 평균을 찍는 것보다 못한 지점까지 내려갑니다.
+            Length, width and angles get you some of the way. But the moment the body style changes it
+            wobbles — and on estate bodies it drops below simply guessing the average.
           </p>
           <BodyTypeChart />
         </div>
@@ -237,28 +236,28 @@ export function DemoPage() {
       {/* 한계 */}
       <section className="demo-section tinted">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">한계</p>
-          <h2 className="demo-h2">이 도구가 답하지 않는 것.</h2>
+          <p className="demo-eyebrow">Limits</p>
+          <h2 className="demo-h2">What this tool will not answer.</h2>
           <div className="demo-grid cols-3">
             <div className="demo-card">
-              <h3>세단 계열만</h3>
+              <h3>Sedan derivatives only</h3>
               <p>
-                DrivAer 세단 변형으로 학습했습니다. SUV·트럭은 학습 분포 밖이라, 값을 내는 대신
-                분포 밖이라고 알립니다.
+                It learned from DrivAer sedan variants. SUVs and trucks fall outside that, so it reports
+                out-of-distribution instead of answering.
               </p>
             </div>
             <div className="demo-card">
-              <h3>미세한 차이</h3>
+              <h3>Very small differences</h3>
               <p>
-                5 counts 미만의 변화는 부호조차 동전 던지기에 가깝습니다. 순위를 믿되 마지막
-                자리는 믿지 마세요.
+                Below 5 counts even the direction of a change is close to a coin flip. Trust the ranking,
+                not the last digit.
               </p>
             </div>
             <div className="demo-card">
-              <h3>인증이 아닙니다</h3>
+              <h3>Not a certification</h3>
               <p>
-                CFD 앞단에서 후보를 걸러내는 도구입니다. 풍동과 고충실도 해석을 대체하지
-                않습니다.
+                This screens candidates before CFD. It does not replace a wind tunnel or a high-fidelity
+                solve.
               </p>
             </div>
           </div>
@@ -267,13 +266,14 @@ export function DemoPage() {
 
       <section className="demo-section center">
         <div className="demo-wrap">
-          <h2 className="demo-h2">이제 직접 형상을 바꿔보세요.</h2>
+          <h2 className="demo-h2">Now change the shape yourself.</h2>
           <p className="demo-lede">
-            스튜디오에서는 23개 파라미터를 움직일 때마다 3D 형상과 예측 Cd가 함께 갱신됩니다.
+            In the studio, every one of the 23 parameters updates the 3D body and the predicted Cd as you
+            move it.
           </p>
           <div className="demo-cta-row">
             <a className="pill primary" href={STUDIO_URL}>
-              스튜디오 열기
+              Open the studio
             </a>
           </div>
         </div>
@@ -281,11 +281,11 @@ export function DemoPage() {
 
       <footer className="demo-footer">
         <div className="demo-wrap">
-          조선대학교 · Qualcomm Institute Team A —{" "}
+          Chosun University · Qualcomm Institute Team A — trained on{" "}
           <a href="https://github.com/Mohamedelrefaie/DrivAerNet" target="_blank" rel="noreferrer">
             DrivAerNet++
           </a>{" "}
-          (Elrefaie et al., NeurIPS 2024) 로 학습했습니다.
+          (Elrefaie et al., NeurIPS 2024).
         </div>
       </footer>
     </div>

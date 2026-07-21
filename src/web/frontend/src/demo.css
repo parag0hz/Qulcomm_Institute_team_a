@@ -218,13 +218,13 @@
   color: #f2f6f7;
   padding-bottom: clamp(56px, 7vw, 88px);
 }
-.demo-hero .demo-eyebrow { color: #4fd8c8; }
+.demo-hero .demo-eyebrow { color: #8aa2ad; }
 .demo-hero .demo-lede { color: #a9bcc2; max-width: 52ch; }
 .demo-hero .demo-h1 { color: #fff; }
 
 .demo-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1.75fr) minmax(270px, .95fr);
   gap: 22px;
   margin-top: 40px;
 }
@@ -235,10 +235,11 @@
   overflow: hidden;
   background: radial-gradient(circle at 50% 42%, #16242b 0%, #0a1114 72%);
   border: 1px solid #1e2c33;
-  min-height: 380px;
+  min-height: 460px;
 }
 .cloud-stage { position: absolute; inset: 0; }
-.cloud-canvas { width: 100%; height: 100%; cursor: grab; }
+.cloud-canvas { width: 100%; height: 100%; cursor: grab; overflow: hidden; }
+.cloud-canvas canvas { display: block; width: 100% !important; height: 100% !important; }
 .cloud-canvas:active { cursor: grabbing; }
 .cloud-stage.is-busy .cloud-canvas { opacity: .5; transition: opacity .2s ease; }
 .cloud-hint {
@@ -256,7 +257,7 @@
 .spinner {
   width: 20px; height: 20px; border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, .25);
-  border-top-color: #4fd8c8;
+  border-top-color: #ffffff;
   animation: cloud-spin .8s linear infinite;
 }
 @keyframes cloud-spin { to { transform: rotate(360deg); } }
@@ -282,11 +283,11 @@
 }
 .chip small { font-size: 11.5px; color: #6f8a92; font-variant-numeric: tabular-nums; }
 .chip:hover { border-color: #3d5560; color: #e3f1f2; }
-.chip.active { background: #14b8a6; border-color: #14b8a6; color: #04231f; font-weight: 600; }
-.chip.active small { color: rgba(4, 35, 31, .68); }
+.chip.active { background: #f2f6f8; border-color: #f2f6f8; color: #101a1f; font-weight: 600; }
+.chip.active small { color: rgba(16, 26, 31, .55); }
 
 .pill.block { width: 100%; min-height: 46px; font-size: 16px; }
-.demo-hero .pill.primary { background: #14b8a6; color: #04231f; font-weight: 600; }
+.demo-hero .pill.primary { background: #f2f6f8; color: #101a1f; font-weight: 600; }
 
 .stage-error {
   padding: 12px 14px; border-radius: var(--r);
@@ -306,7 +307,7 @@
   font-variant-numeric: tabular-nums; color: #fff;
 }
 .result-row strong.muted { color: #a9bcc2; }
-.result-row.highlight strong.good { color: #4fd8c8; }
+.result-row.highlight strong.good { color: #7fd6a8; }
 .result-row.highlight strong.warn { color: #f0b366; }
 
 .stage-foot { margin-top: 4px; font-size: 13px; line-height: 1.6; color: #7f9aa2; }
