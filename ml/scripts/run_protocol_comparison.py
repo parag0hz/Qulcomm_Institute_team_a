@@ -170,10 +170,29 @@ if __name__ == "__main__":
     if a.only != "dl":
         print("=== ML (설계 파라미터 23개) ===")
         out.update(run_ml(ds, sets, use_autogluon=not a.no_autogluon))
+    def save(o):
+        """백본 하나 끝날 때마다 저장 — 뒤에서 크래시해도 앞 결과를 잃지 않는다."""
+        with open(a.out, "w") as f:
+            json.dump({"n": len(ds["keys"]), "K": 5, "npoints": a.npoints,
+                       "protocol": "rotating 3/1/1, stratified by body type",
+                       "models": {k: v["agg"] for k, v in o.items()},
+                       "per_set": {k: v["per_set"] for k, v in o.items()}}, f,
+                      indent=1, ensure_ascii=False)
+
+    if out:
+        save(out)
     if a.only != "ml":
         print(f"\n=== DL (포인트클라우드 {a.npoints}점) ===")
         for bb in a.backbones:
-            out.update(run_dl(ds, sets, backbone=bb))
+            try:
+                out.update(run_dl(ds, sets, backbone=bb))
+                save(out)                      # ← 즉시 저장
+                print(f"  (중간 저장 완료: {a.out})", flush=True)
+            except Exception as e:
+                import traceback
+                print(f"  ⚠ [{bb}] 실패 — 건너뜀: {type(e).__name__}: {e}", flush=True)
+                traceback.print_exc()
+                continue
 
     payload = {"n": len(ds["keys"]), "K": 5, "npoints": a.npoints,
                "protocol": "rotating 3/1/1, stratified by body type",

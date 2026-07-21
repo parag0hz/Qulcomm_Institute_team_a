@@ -1,0 +1,38 @@
+{
+ "onnx": "pointnet_serving.onnx",
+ "input": {
+  "name": "points",
+  "shape": [
+   "batch",
+   2048,
+   3
+  ],
+  "dtype": "float32",
+  "note": "미터 스케일 원본 좌표. 센터링/정규화 하지 말 것 (모델 내부 처리)"
+ },
+ "output": {
+  "name": "cd",
+  "shape": [
+   "batch"
+  ],
+  "dtype": "float32",
+  "note": "Cd 예측값"
+ },
+ "preprocessing_required": "STL/메시 → 표면 샘플링 → FPS로 2048점 → 그대로 입력",
+ "trained_on": {
+  "n_train": 2964,
+  "n_val": 740,
+  "npoints": 2048
+ },
+ "hyperparameters": {
+  "lr": 0.0012453,
+  "weight_decay": 2.1069e-05,
+  "bs": 32,
+  "dropout": 0.4,
+  "emb": 512
+ },
+ "val_r2": 0.8922816187004813,
+ "cv_reference": "동일 설정 5-fold 교차검증 R² 0.865 ± 0.038 (outputs/optuna_results.json)",
+ "demo_mae_counts": 3.6361276588439964,
+ "onnx_pytorch_max_diff": 1.1920928955078125e-07
+}
