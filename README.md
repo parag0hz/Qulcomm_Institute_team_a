@@ -76,7 +76,7 @@ The smallest model wins: PointNet (0.81 M parameters) beats DGCNN (1.80 M) and R
 | `src/web/frontend/` | React + TypeScript + Zustand studio, Three.js viewer with live geometry morphing |
 | `src/web/models/` | Parametric baseline training, reference mesh preparation |
 | `src/ParametricModels/` | DrivAerNet++ parametric CSV (4,165 designs) |
-| `ml/` | Research pipeline — training, evaluation protocol, experiment reports *(currently on the `dongwon` branch)* |
+| `ml/` | Research pipeline — training, evaluation protocol, experiment reports ([details](ml/README.md)) |
 | `Dockerfile`, `render.yaml` | Single-service deployment |
 
 ---
