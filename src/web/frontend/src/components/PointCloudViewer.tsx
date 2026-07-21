@@ -11,17 +11,35 @@ import * as THREE from "three";
 interface PointCloudViewerProps {
   points: number[][] | null;
   busy?: boolean;
+  /** 밀도 애니메이션을 멈추고 이 개수로 고정한다(추론 결과를 볼 때). */
+  freezeAt?: number | null;
+  onDensityChange?: (count: number) => void;
 }
 
 const FOV = 34;
+const MIN_POINTS = 96;
+// 한 번 차오르고 빠지는 데 걸리는 시간. 너무 빠르면 산만하고 느리면 지루하다.
+const CYCLE_MS = 7200;
 
-export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps) {
+export function PointCloudViewer({
+  points,
+  busy = false,
+  freezeAt = null,
+  onDensityChange,
+}: PointCloudViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const cloudRef = useRef<THREE.Points | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const spinRef = useRef(true);
   // Framing is derived from the cloud itself so every body type fills the frame.
-  const fitRef = useRef({ cx: 1.5, cy: 0, cz: 0.6, radius: 3.2 });
+  const fitRef = useRef({ cx: 1.5, cy: 0, cz: 0.6, spanXY: 4.8, spanZ: 1.4 });
+  const totalRef = useRef(0);
+  const freezeRef = useRef<number | null>(null);
+  const notifyRef = useRef<((count: number) => void) | undefined>(undefined);
+  const lastNotifiedRef = useRef(0);
+
+  freezeRef.current = freezeAt;
+  notifyRef.current = onDensityChange;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -82,16 +100,42 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     observer.observe(host);
     resize();
 
+    const started = performance.now();
+
     const tick = () => {
       frame = requestAnimationFrame(tick);
       if (spinRef.current) yaw += 0.0026;
 
-      const { cx, cy, cz, radius } = fitRef.current;
-      // Fit the bounding sphere in whichever axis is tighter, so a wide panel
-      // and a narrow one both show the whole car.
+      // 점을 매 프레임 다시 만들지 않는다. 지오메트리는 그대로 두고 그리는
+      // 개수만 바꾼다 — FPS 순서라 앞에서 n개가 곧 FPS-n 샘플이다.
+      const cloud = cloudRef.current;
+      const total = totalRef.current;
+      if (cloud && total > 0) {
+        let count: number;
+        if (freezeRef.current) {
+          count = Math.min(freezeRef.current, total);
+        } else {
+          // 삼각파를 부드럽게 다듬어 차오르고 빠지는 호흡을 만든다.
+          const phase = ((performance.now() - started) % CYCLE_MS) / CYCLE_MS;
+          const triangle = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+          const eased = triangle * triangle * (3 - 2 * triangle);
+          count = Math.round(MIN_POINTS + (total - MIN_POINTS) * eased);
+        }
+        cloud.geometry.setDrawRange(0, count);
+        if (Math.abs(count - lastNotifiedRef.current) > total * 0.02) {
+          lastNotifiedRef.current = count;
+          notifyRef.current?.(count);
+        }
+      }
+
+      const { cx, cy, cz, spanXY, spanZ } = fitRef.current;
+      // Fit the actual extents, not a bounding sphere. A car is long and flat,
+      // so a sphere pads it out and leaves the body small in frame.
       const vFov = (FOV * Math.PI) / 180;
       const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
-      const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.12;
+      const distH = spanXY / 2 / Math.tan(hFov / 2);
+      const distV = (spanZ / 2) * 2.1 / Math.tan(vFov / 2);
+      const distance = Math.max(distH, distV) * 1.08;
 
       camera.position.set(
         cx + Math.cos(yaw) * distance * 0.94,
@@ -140,15 +184,21 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.computeBoundingSphere();
+    geometry.computeBoundingBox();
 
-    const sphere = geometry.boundingSphere;
-    if (sphere) {
+    const box = geometry.boundingBox;
+    if (box) {
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
       fitRef.current = {
-        cx: sphere.center.x,
-        cy: sphere.center.y,
-        cz: sphere.center.z * 0.85,
-        radius: sphere.radius,
+        cx: center.x,
+        cy: center.y,
+        cz: center.z * 0.8,
+        // 3/4 각도에서 가로로 필요한 폭은 길이와 폭 사이 어딘가다.
+        spanXY: Math.hypot(size.x, size.y) * 0.82,
+        spanZ: size.z,
       };
     }
 
@@ -161,17 +211,18 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
     });
 
     const cloud = new THREE.Points(geometry, material);
+    cloud.frustumCulled = false; // drawRange를 쓰면 바운딩이 실제보다 커 보인다
     scene.add(cloud);
     cloudRef.current = cloud;
+    totalRef.current = points.length;
+    lastNotifiedRef.current = 0;
     spinRef.current = true;
   }, [points]);
 
   return (
     <div className={`cloud-stage ${busy ? "is-busy" : ""}`}>
       <div className="cloud-canvas" ref={hostRef} />
-      <span className="cloud-hint">
-        Drag to rotate · {(points?.length ?? 0).toLocaleString()} points
-      </span>
+      <span className="cloud-hint">Drag to rotate</span>
     </div>
   );
 }

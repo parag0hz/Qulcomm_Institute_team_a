@@ -317,25 +317,18 @@
   .stage-viewer { min-height: 320px; }
 }
 
-/* ---- 점 개수 스테퍼 ---- */
+/* ---- 밀도 표시 ---- */
 .stage-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .level-value {
   font-size: 15px; font-weight: 600; color: #eef5f8;
   font-variant-numeric: tabular-nums; letter-spacing: -.01em;
 }
-.level-steps { display: flex; gap: 6px; }
-.step {
-  position: relative; flex: 1; min-width: 0;
-  padding: 9px 4px; border-radius: 10px;
-  border: 1px solid #2a3a42; background: transparent; color: #9db2ba;
-  font-size: 13px; font-variant-numeric: tabular-nums;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
+.level-value small { font-size: 13px; font-weight: 400; color: #6f8a92; }
+.density-bar {
+  height: 3px; margin-top: 10px; border-radius: 99px;
+  background: #22323a; overflow: hidden;
 }
-.step:hover { border-color: #3d5560; color: #dceaef; }
-.step.active { background: #f2f6f8; border-color: #f2f6f8; color: #101a1f; font-weight: 600; }
-.step em {
-  position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%);
-  font-style: normal; font-size: 10px; letter-spacing: .04em;
-  text-transform: uppercase; color: #6f8a92;
+.density-bar i {
+  display: block; height: 100%; border-radius: inherit;
+  background: #dbe7ef; transition: width .12s linear;
 }
-.level-steps { margin-bottom: 18px; }

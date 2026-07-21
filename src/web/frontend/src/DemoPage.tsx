@@ -21,7 +21,8 @@ function LiveDemo() {
   const [loadingCloud, setLoadingCloud] = useState(false);
   const [inferring, setInferring] = useState(false);
   const [result, setResult] = useState<DemoInference | null>(null);
-  const [level, setLevel] = useState(2048);
+  // 애니메이션이 지금 몇 점을 그리고 있는지(표시용). 추론은 학습 조건으로 고정한다.
+  const [density, setDensity] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -74,27 +75,29 @@ function LiveDemo() {
     setError(null);
     setResult(null);
     try {
-      const payload = await api.inferDemoCar(activeId, level, controller.signal);
+      const payload = await api.inferDemoCar(activeId, undefined, controller.signal);
       if (!controller.signal.aborted) setResult(payload);
     } catch (cause) {
       if (!controller.signal.aborted) setError(message(cause));
     } finally {
       if (!controller.signal.aborted) setInferring(false);
     }
-  }, [activeId, level]);
+  }, [activeId]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const active = cars.find((car) => car.id === activeId) ?? null;
   const available = active?.point_count ?? 2048;
-  // FPS 순서가 보존돼 있어 앞에서 K개를 자르면 그대로 FPS-K 샘플이 된다.
-  const levels = [1, 128, 512, 1024, 2048, 4096].filter((n) => n <= available);
-  const shown = points ? points.slice(0, Math.min(level, points.length)) : null;
 
   return (
     <div className="demo-stage">
       <div className="stage-viewer">
-        <PointCloudViewer points={shown} busy={loadingCloud || inferring} />
+        <PointCloudViewer
+          points={points}
+          busy={loadingCloud || inferring}
+          freezeAt={result ? result.n_points : null}
+          onDensityChange={setDensity}
+        />
         {inferring && (
           <div className="stage-overlay" role="status">
             <span className="spinner" aria-hidden="true" />
@@ -124,24 +127,14 @@ function LiveDemo() {
 
         <div className="stage-block">
           <p className="stage-label">
-            Points fed to the model
-            <span className="level-value">{level.toLocaleString()}</span>
+            Points on screen
+            <span className="level-value">
+              {(result ? result.n_points : density).toLocaleString()}
+              <small> / {available.toLocaleString()}</small>
+            </span>
           </p>
-          <div className="level-steps">
-            {levels.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`step ${n === level ? "active" : ""}`}
-                onClick={() => {
-                  setLevel(n);
-                  setResult(null);
-                }}
-              >
-                {n.toLocaleString()}
-                {n === 2048 && <em>trained</em>}
-              </button>
-            ))}
+          <div className="density-bar" aria-hidden="true">
+            <i style={{ width: `${Math.min(100, ((result ? result.n_points : density) / available) * 100)}%` }} />
           </div>
         </div>
 
