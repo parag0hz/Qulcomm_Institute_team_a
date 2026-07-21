@@ -51,12 +51,26 @@
 | `outputs/protocol_comparison.json` | 기존 결과 (비교 기준) | ○ |
 | `outputs/optuna_results.json` | 기존 HPO 결과 | ○ |
 
+### 코드는 GitHub에서 (2026-07-21부터)
+
+코드·문서는 **팀 저장소의 `dongwon` 브랜치 `ml/` 폴더**에 올라가 있다. rsync 대신 git으로 받는다:
+
 ```bash
-# 코드/설정만 추가 동기화하는 경우
-rsync -av kwy00@192.168.0.105:/home/kwy00/qi/scripts/  ~/qi/scripts/
-rsync -av kwy00@192.168.0.105:/home/kwy00/qi/data/demo_holdout.json ~/qi/data/
-rsync -av kwy00@192.168.0.105:/home/kwy00/qi/outputs/{protocol_comparison,optuna_results}.json ~/qi/outputs/
+git clone -b dongwon https://github.com/parag0hz/Qulcomm_Institute_team_a ~/team_repo
+cd ~/team_repo/ml          # ← 여기가 작업 디렉토리 (기존 qi/ 와 동일 구조)
+git pull                   # 이후 갱신은 이것만
 ```
+
+**데이터는 저장소에 없다** (수십 GB). 데이터만 rsync로 받는다:
+```bash
+mkdir -p ~/team_repo/ml/data
+rsync -avhP --exclude='DrivAer++_Points.tar' --exclude='pc100k_f32.dat' \
+  kwy00@192.168.0.105:/home/kwy00/qi/data/  ~/team_repo/ml/data/
+export QI_DATA=~/team_repo/ml/data
+```
+> `data/demo_holdout.json`은 git에 포함돼 있으니 rsync가 덮어써도 무방하다.
+
+**결과 회수도 git으로**: A100에서 나온 `outputs/*.json`은 용량이 작으니 커밋해서 푸시하면 된다(그림 PNG는 .gitignore로 막혀 있으니 필요하면 `git add -f`).
 
 **환경**: `automl` env 하나로 ML+DL 모두 실행 가능하다(torch+autogluon+lightgbm+optuna). A100에서는 [A100_BOOTSTRAP.md](A100_BOOTSTRAP.md) §2대로 표준 torch(cu124 등)를 쓰면 되고, **cu130 인덱스는 5080 전용이니 쓰지 말 것**. optuna는 `pip install optuna` 추가 필요.
 
