@@ -208,3 +208,110 @@
 @media (prefers-reduced-motion: reduce) {
   .pill { transition: none; }
 }
+
+/* ==========================================================================
+   라이브 데모 스테이지 — 점군이 주인공이라 히어로를 어둡게 간다.
+   밝은 배경에서는 점이 흩어져 보이고, 어두운 배경에서는 형상이 살아난다.
+   ========================================================================== */
+.demo-hero {
+  background: #0d1418;
+  color: #f2f6f7;
+  padding-bottom: clamp(56px, 7vw, 88px);
+}
+.demo-hero .demo-eyebrow { color: #4fd8c8; }
+.demo-hero .demo-lede { color: #a9bcc2; max-width: 52ch; }
+.demo-hero .demo-h1 { color: #fff; }
+
+.demo-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+  gap: 22px;
+  margin-top: 40px;
+}
+
+.stage-viewer {
+  position: relative;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, #16242b 0%, #0a1114 72%);
+  border: 1px solid #1e2c33;
+  min-height: 380px;
+}
+.cloud-stage { position: absolute; inset: 0; }
+.cloud-canvas { width: 100%; height: 100%; cursor: grab; }
+.cloud-canvas:active { cursor: grabbing; }
+.cloud-stage.is-busy .cloud-canvas { opacity: .5; transition: opacity .2s ease; }
+.cloud-hint {
+  position: absolute; left: 16px; bottom: 14px;
+  font-size: 12.5px; color: #6f8a92; letter-spacing: .01em;
+}
+
+.stage-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  background: rgba(10, 17, 20, .62);
+  backdrop-filter: blur(3px);
+  color: #eaf5f4; font-size: 16px; font-weight: 500;
+}
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .25);
+  border-top-color: #4fd8c8;
+  animation: cloud-spin .8s linear infinite;
+}
+@keyframes cloud-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+/* ---- 오른쪽 조작부 ---- */
+.stage-side {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 24px;
+  border-radius: var(--r-lg);
+  background: #131e23;
+  border: 1px solid #1e2c33;
+}
+.stage-label { font-size: 13px; font-weight: 600; color: #7f9aa2; margin-bottom: 12px; }
+.stage-muted { font-size: 14px; color: #6f8a92; }
+
+.car-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 9px 13px; border-radius: var(--pill);
+  border: 1px solid #2a3a42; background: transparent; color: #b9ccd1;
+  font-size: 14px; transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.chip small { font-size: 11.5px; color: #6f8a92; font-variant-numeric: tabular-nums; }
+.chip:hover { border-color: #3d5560; color: #e3f1f2; }
+.chip.active { background: #14b8a6; border-color: #14b8a6; color: #04231f; font-weight: 600; }
+.chip.active small { color: rgba(4, 35, 31, .68); }
+
+.pill.block { width: 100%; min-height: 46px; font-size: 16px; }
+.demo-hero .pill.primary { background: #14b8a6; color: #04231f; font-weight: 600; }
+
+.stage-error {
+  padding: 12px 14px; border-radius: var(--r);
+  background: rgba(192, 57, 47, .16); border: 1px solid rgba(192, 57, 47, .4);
+  color: #ffb3ab; font-size: 14px;
+}
+
+.stage-result { display: grid; gap: 2px; }
+.result-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid #1e2c33;
+}
+.result-row:last-of-type { border-bottom: 0; }
+.result-row span { font-size: 14px; color: #8fa8af; }
+.result-row strong {
+  font-size: 24px; font-weight: 600; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; color: #fff;
+}
+.result-row strong.muted { color: #a9bcc2; }
+.result-row.highlight strong.good { color: #4fd8c8; }
+.result-row.highlight strong.warn { color: #f0b366; }
+
+.stage-foot { margin-top: 4px; font-size: 13px; line-height: 1.6; color: #7f9aa2; }
+
+@media (max-width: 880px) {
+  .demo-stage { grid-template-columns: 1fr; }
+  .stage-viewer { min-height: 320px; }
+}

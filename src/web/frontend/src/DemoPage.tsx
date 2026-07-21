@@ -2,104 +2,161 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./demo.css";
 import { api } from "./api";
 import { BodyTypeChart } from "./components/BodyTypeChart";
-import type { PointNetDemoResponse } from "./types";
+import { PointCloudViewer } from "./components/PointCloudViewer";
+import type { DemoCar, DemoInference } from "./types";
 
 const STUDIO_URL = "/";
 
-function errorTone(counts: number | undefined) {
-  if (counts == null) return "";
-  return counts < 5 ? "good" : counts < 10 ? "" : "poor";
-}
-
-/** 라이브 증명 — 이 페이지의 중심. 버튼을 누르면 실제로 모델이 돈다. */
-function LiveProof() {
-  const [result, setResult] = useState<PointNetDemoResponse | null>(null);
-  const [busy, setBusy] = useState(false);
+/**
+ * 데모의 본체.
+ *
+ * 흐름을 일부러 한 화면에 묶었다: 모델이 보는 것(점군)을 먼저 띄우고 →
+ * 버튼을 누르면 → 실제로 추론이 돌고 → 정답과 나란히 놓는다. 이 순서를
+ * 눈으로 따라가면 "이게 뭐 하는 물건인지"가 설명 없이 전달된다.
+ */
+function LiveDemo() {
+  const [cars, setCars] = useState<DemoCar[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [points, setPoints] = useState<number[][] | null>(null);
+  const [loadingCloud, setLoadingCloud] = useState(false);
+  const [inferring, setInferring] = useState(false);
+  const [result, setResult] = useState<DemoInference | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const run = useCallback(async () => {
+  const message = (cause: unknown) =>
+    cause instanceof Error && cause.message ? cause.message : "서버에 연결하지 못했습니다.";
+
+  // 목록을 받아 첫 차량을 자동 선택한다.
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .getDemoCars(controller.signal)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        setCars(payload.cars);
+        if (payload.cars.length) setActiveId(payload.cars[0].id);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(message(cause));
+      });
+    return () => controller.abort();
+  }, []);
+
+  // 선택이 바뀌면 점군을 새로 불러온다.
+  useEffect(() => {
+    if (!activeId) return;
+    const controller = new AbortController();
+    setLoadingCloud(true);
+    setResult(null);
+    setError(null);
+    api
+      .getDemoCloud(activeId, controller.signal)
+      .then((payload) => {
+        if (!controller.signal.aborted) setPoints(payload.points);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(message(cause));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingCloud(false);
+      });
+    return () => controller.abort();
+  }, [activeId]);
+
+  const infer = useCallback(async () => {
+    if (!activeId) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setBusy(true);
+    setInferring(true);
     setError(null);
+    setResult(null);
     try {
-      setResult(await api.getPointNetDemo(controller.signal));
+      const payload = await api.inferDemoCar(activeId, controller.signal);
+      if (!controller.signal.aborted) setResult(payload);
     } catch (cause) {
-      if (!controller.signal.aborted) {
-        setError(cause instanceof Error ? cause.message : "Prediction failed.");
-      }
+      if (!controller.signal.aborted) setError(message(cause));
     } finally {
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted) setInferring(false);
     }
-  }, []);
+  }, [activeId]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const items = result?.items ?? [];
+  const active = cars.find((car) => car.id === activeId) ?? null;
 
   return (
-    <div className="live-panel">
-      <div className="live-head">
-        <div>
-          <h3>Five cars the model has never seen</h3>
-          <p>Held out of training and validation from the start. Nothing here is precomputed.</p>
-        </div>
-        <button className="pill primary" type="button" disabled={busy} onClick={() => void run()}>
-          {busy ? "Predicting…" : result ? "Run again" : "Run the model"}
-        </button>
+    <div className="demo-stage">
+      <div className="stage-viewer">
+        <PointCloudViewer points={points} busy={loadingCloud || inferring} />
+        {inferring && (
+          <div className="stage-overlay" role="status">
+            <span className="spinner" aria-hidden="true" />
+            추론 중입니다…
+          </div>
+        )}
       </div>
 
-      {error && <div className="live-error">{error}</div>}
-      {result?.available === false && <div className="live-error">{result.reason}</div>}
-
-      {result?.available && (
-        <>
-          <div className="live-headline">
-            <strong>
-              {result.mean_error_counts == null ? "—" : result.mean_error_counts.toFixed(2)}
-            </strong>
-            <span>drag counts of average error · 1 count = 0.001 Cd</span>
+      <aside className="stage-side">
+        <div className="stage-block">
+          <p className="stage-label">학습에 쓰이지 않은 차량</p>
+          <div className="car-chips">
+            {cars.map((car) => (
+              <button
+                key={car.id}
+                type="button"
+                className={`chip ${car.id === activeId ? "active" : ""}`}
+                onClick={() => setActiveId(car.id)}
+              >
+                {car.body_type}
+                <small>{car.id.split("_").pop()}</small>
+              </button>
+            ))}
+            {!cars.length && !error && <span className="stage-muted">불러오는 중…</span>}
           </div>
+        </div>
 
-          <table className="live-table">
-            <thead>
-              <tr>
-                <th scope="col">Design</th>
-                <th scope="col">Body</th>
-                <th scope="col">Actual Cd</th>
-                <th scope="col">Predicted</th>
-                <th scope="col">Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td className="id">{item.id}</td>
-                  <td className="id">{item.body_type}</td>
-                  <td>{item.true_cd?.toFixed(4) ?? "—"}</td>
-                  <td>
-                    {item.trusted ? (
-                      item.cd?.toFixed(4)
-                    ) : (
-                      <span title={item.warnings[0]}>out of distribution</span>
-                    )}
-                  </td>
-                  <td className={`err ${errorTone(item.error_counts)}`}>
-                    {item.error_counts?.toFixed(2) ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <button
+          className="pill primary block"
+          type="button"
+          disabled={!activeId || inferring || loadingCloud}
+          onClick={() => void infer()}
+        >
+          {inferring ? "추론 중입니다…" : "이 형상으로 추론하기"}
+        </button>
 
-          <p className="live-foot">
-            {result.point_count} points per car · all {items.length} shown, including the worst case.
-            Under 5 counts is the accuracy literature accepts for screening.
+        {error && <div className="stage-error">{error}</div>}
+
+        {result ? (
+          <div className="stage-result">
+            <div className="result-row">
+              <span>모델 예측</span>
+              <strong>{result.trusted ? result.cd?.toFixed(4) : "분포 밖"}</strong>
+            </div>
+            <div className="result-row">
+              <span>실제 CFD 값</span>
+              <strong className="muted">{result.true_cd?.toFixed(4)}</strong>
+            </div>
+            <div className="result-row highlight">
+              <span>오차</span>
+              <strong className={(result.error_counts ?? 0) < 5 ? "good" : "warn"}>
+                {result.error_counts?.toFixed(2)} counts
+              </strong>
+            </div>
+            <p className="stage-foot">
+              추론 {result.inference_ms.toFixed(1)}ms · 1 count = 0.001 Cd · 5 counts 이하면
+              대체모델로 통용되는 정확도입니다.
+            </p>
+          </div>
+        ) : (
+          <p className="stage-foot">
+            {active
+              ? `${active.body_type} 차체 · ${active.point_count.toLocaleString()}개 점. 이 좌표만이 모델의 입력입니다.`
+              : "차량을 고르면 모델이 보는 점군이 그대로 표시됩니다."}
           </p>
-        </>
-      )}
+        )}
+      </aside>
     </div>
   );
 }
@@ -113,171 +170,110 @@ export function DemoPage() {
           <span>Paragon</span>
         </a>
         <a className="pill dark sm" href={STUDIO_URL}>
-          Open the studio
+          스튜디오 열기
         </a>
       </nav>
 
-      {/* 1 — 무엇을 하는 물건인가 */}
-      <header className="demo-section demo-hero center">
+      {/* 데모를 맨 위에. 설명보다 먼저 보여준다. */}
+      <header className="demo-section demo-hero">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">Aerodynamic drag, predicted</p>
-          <h1 className="demo-h1">
-            Weeks of simulation,
-            <br />
-            answered in milliseconds.
-          </h1>
+          <p className="demo-eyebrow">3D 형상으로 공기저항 예측</p>
+          <h1 className="demo-h1">이 점들만 보고, 항력을 맞힙니다.</h1>
           <p className="demo-lede">
-            Paragon estimates a vehicle's drag coefficient the moment you change its shape —
-            so you can compare fifty concepts before CFD has finished one.
+            CFD 시뮬레이션은 설계 하나에 며칠에서 몇 주가 걸립니다. Paragon은 차체 표면에서 뽑은
+            2,048개의 점만으로 같은 값을 밀리초 만에 추정합니다.
           </p>
-          <div className="demo-cta-row">
-            <a className="pill primary" href="#live">
-              See it predict live
-            </a>
-            <a className="pill ghost" href={STUDIO_URL}>
-              Open the studio
-            </a>
-          </div>
-          <div className="hero-readout">
-            <small>Inference</small>
-            <strong>1.8</strong>
-            <em>milliseconds per design, on a CPU</em>
-          </div>
+          <LiveDemo />
         </div>
       </header>
 
-      {/* 2 — 왜 필요한가 */}
+      {/* 방금 무슨 일이 있었는지 */}
       <section className="demo-section tinted">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">The bottleneck</p>
-          <h2 className="demo-h2">Testing a shape costs more than drawing it.</h2>
-          <p className="demo-lede">
-            Computational fluid dynamics is the standard way to measure drag, and it is slow
-            enough that early-stage designers simply never run it.
-          </p>
-          <div className="demo-grid cols-3">
-            <div className="demo-card stat-card">
-              <strong>Days–weeks</strong>
-              <span>for one high-fidelity CFD run</span>
-            </div>
-            <div className="demo-card stat-card">
-              <strong>2,880</strong>
-              <span>CPU cores used to build the dataset we learn from</span>
-            </div>
-            <div className="demo-card stat-card">
-              <strong>39 TB</strong>
-              <span>of simulation output behind those labels</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3 — 어떻게 동작하는가 */}
-      <section className="demo-section">
-        <div className="demo-wrap">
-          <p className="demo-eyebrow">How it works</p>
-          <h2 className="demo-h2">Two ways in, one number out.</h2>
-          <p className="demo-lede">
-            Give it design parameters or the 3D shape itself. Both paths end at the same
-            answer: the drag coefficient, immediately.
-          </p>
+          <p className="demo-eyebrow">방금 일어난 일</p>
+          <h2 className="demo-h2">사전에 계산해둔 값이 아닙니다.</h2>
           <div className="demo-grid cols-3">
             <div className="demo-card step-card">
               <span className="step-no">1</span>
-              <h3>Describe the car</h3>
+              <h3>처음 보는 차량</h3>
               <p>
-                Move 23 design sliders, or hand it a point cloud sampled from the body surface.
+                이 5대는 학습과 검증 어디에도 쓰이지 않도록 처음부터 빼두었습니다. 모델에게는
+                방금이 첫 대면입니다.
               </p>
             </div>
             <div className="demo-card step-card">
               <span className="step-no">2</span>
-              <h3>The model reads the shape</h3>
+              <h3>점 2,048개가 입력의 전부</h3>
               <p>
-                A 0.8M-parameter network trained on 3,704 simulated vehicles. Small enough to
-                run on a CPU, so there is no queue.
+                화면에 보이는 좌표를 그대로 신경망에 넣습니다. 사진도, 도면도, 설계 수치도 쓰지
+                않습니다.
               </p>
             </div>
             <div className="demo-card step-card">
               <span className="step-no">3</span>
-              <h3>Compare, don't guess</h3>
+              <h3>정답과 나란히</h3>
               <p>
-                Rank concepts against each other and against the dataset, with the uncertainty
-                stated rather than hidden.
+                비교 대상인 실제 Cd는 슈퍼컴퓨터로 돌린 CFD 결과입니다. 그 차이를 그대로
+                보여줍니다.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4 — 증명 (이 페이지의 중심) */}
-      <section className="demo-section tinted center" id="live">
-        <div className="demo-wrap">
-          <p className="demo-eyebrow">The proof</p>
-          <h2 className="demo-h2">Don't take our word for it.</h2>
-          <p className="demo-lede">
-            Five vehicles were removed from the dataset before training ever started. Their true
-            drag was computed by CFD. Press the button and watch the model meet them for the
-            first time.
-          </p>
-          <LiveProof />
-        </div>
-      </section>
-
-      {/* 5 — 왜 형상인가 */}
+      {/* 왜 형상인가 */}
       <section className="demo-section">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">Why shape</p>
-          <h2 className="demo-h2">Numbers describe a car. Shape explains it.</h2>
+          <p className="demo-eyebrow">왜 형상이어야 하는가</p>
+          <h2 className="demo-h2">설계 수치만으로는 왜건에서 무너집니다.</h2>
           <p className="demo-lede">
-            Predicting from design parameters alone works until the body style changes. On
-            estate bodies it collapses — one model does worse than simply guessing the average.
+            길이·폭·각도 같은 파라미터로도 예측은 됩니다. 다만 차체 형식이 바뀌면 흔들리고,
+            에스테이트에서는 평균을 찍는 것보다 못한 지점까지 내려갑니다.
           </p>
           <BodyTypeChart />
         </div>
       </section>
 
-      {/* 6 — 정직하게 */}
+      {/* 한계 */}
       <section className="demo-section tinted">
         <div className="demo-wrap">
-          <p className="demo-eyebrow">Where it stops</p>
-          <h2 className="demo-h2">What this tool will not tell you.</h2>
+          <p className="demo-eyebrow">한계</p>
+          <h2 className="demo-h2">이 도구가 답하지 않는 것.</h2>
           <div className="demo-grid cols-3">
             <div className="demo-card">
-              <h3>Sedans only</h3>
+              <h3>세단 계열만</h3>
               <p>
-                It learned from DrivAer sedan variants. SUVs and trucks are outside what it has
-                seen, and it says so instead of answering confidently.
+                DrivAer 세단 변형으로 학습했습니다. SUV·트럭은 학습 분포 밖이라, 값을 내는 대신
+                분포 밖이라고 알립니다.
               </p>
             </div>
             <div className="demo-card">
-              <h3>Small differences</h3>
+              <h3>미세한 차이</h3>
               <p>
-                Below about 5 drag counts, the sign of a predicted change is close to a coin
-                flip. Trust the ranking, not the last decimal.
+                5 counts 미만의 변화는 부호조차 동전 던지기에 가깝습니다. 순위를 믿되 마지막
+                자리는 믿지 마세요.
               </p>
             </div>
             <div className="demo-card">
-              <h3>Not a certificate</h3>
+              <h3>인증이 아닙니다</h3>
               <p>
-                This is a screening filter that runs before CFD, never a replacement for a wind
-                tunnel.
+                CFD 앞단에서 후보를 걸러내는 도구입니다. 풍동과 고충실도 해석을 대체하지
+                않습니다.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 7 — 직접 해보기 */}
       <section className="demo-section center">
         <div className="demo-wrap">
-          <h2 className="demo-h2">Now move a slider and watch it change.</h2>
+          <h2 className="demo-h2">이제 직접 형상을 바꿔보세요.</h2>
           <p className="demo-lede">
-            The studio gives you the 3D model, all 23 parameters, and a live prediction on every
-            edit.
+            스튜디오에서는 23개 파라미터를 움직일 때마다 3D 형상과 예측 Cd가 함께 갱신됩니다.
           </p>
           <div className="demo-cta-row">
             <a className="pill primary" href={STUDIO_URL}>
-              Open the studio
+              스튜디오 열기
             </a>
           </div>
         </div>
@@ -285,11 +281,11 @@ export function DemoPage() {
 
       <footer className="demo-footer">
         <div className="demo-wrap">
-          Chosun University · Qualcomm Institute Team A — trained on{" "}
+          조선대학교 · Qualcomm Institute Team A —{" "}
           <a href="https://github.com/Mohamedelrefaie/DrivAerNet" target="_blank" rel="noreferrer">
             DrivAerNet++
           </a>{" "}
-          (Elrefaie et al., NeurIPS 2024).
+          (Elrefaie et al., NeurIPS 2024) 로 학습했습니다.
         </div>
       </footer>
     </div>

@@ -16,6 +16,7 @@ from typing import Dict, List, Sequence, Tuple
 import json
 import os
 import threading
+import time
 
 import numpy as np
 
@@ -219,6 +220,72 @@ def demo_predictions() -> Dict[str, object]:
             "Predictions run live on every request."
         ),
     }
+
+
+def demo_cars() -> List[Dict[str, object]]:
+    """데모 차량 목록. 점군은 빼고 메타데이터만 — 목록은 가벼워야 한다."""
+
+    bundle = load_demo_clouds()
+    if bundle is None:
+        return []
+    clouds, meta = bundle
+    return [
+        {
+            "id": entry.get("id"),
+            "body_type": entry.get("body_type"),
+            "true_cd": round(float(entry["true_cd"]), 5) if entry.get("true_cd") is not None else None,
+            "point_count": int(clouds.shape[1]),
+        }
+        for entry in meta
+    ]
+
+
+def demo_cloud(design_id: str) -> Dict[str, object] | None:
+    """한 대의 점군 좌표. 브라우저에서 3D로 그리기 위한 것."""
+
+    bundle = load_demo_clouds()
+    if bundle is None:
+        return None
+    clouds, meta = bundle
+    for index, entry in enumerate(meta):
+        if entry.get("id") == design_id:
+            # 소수 4자리면 밀리미터 이하 — 화면 표시에 충분하고 전송량은 절반이다.
+            points = np.round(clouds[index], 4).tolist()
+            return {
+                "id": design_id,
+                "body_type": entry.get("body_type"),
+                "true_cd": round(float(entry["true_cd"]), 5) if entry.get("true_cd") is not None else None,
+                "points": points,
+            }
+    return None
+
+
+def infer_one(design_id: str) -> Dict[str, object] | None:
+    """한 대에 대해 실제로 추론을 돌리고 소요 시간을 함께 돌려준다."""
+
+    bundle = load_demo_clouds()
+    if bundle is None or not runner().available:
+        return None
+    clouds, meta = bundle
+    for index, entry in enumerate(meta):
+        if entry.get("id") != design_id:
+            continue
+        started = time.perf_counter()
+        value = float(runner().predict(clouds[index : index + 1])[0])
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        guarded = _guard(value, clouds.shape[1])
+        true_cd = entry.get("true_cd")
+        payload: Dict[str, object] = {
+            "id": design_id,
+            "body_type": entry.get("body_type"),
+            "true_cd": round(float(true_cd), 5) if true_cd is not None else None,
+            "inference_ms": round(elapsed_ms, 2),
+            **guarded.public_dict(),
+        }
+        if true_cd is not None:
+            payload["error_counts"] = round(abs(value - float(true_cd)) * 1000.0, 2)
+        return payload
+    return None
 
 
 def pointnet_status() -> Dict[str, object]:

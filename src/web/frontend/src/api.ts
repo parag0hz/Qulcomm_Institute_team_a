@@ -6,6 +6,9 @@ import type {
   DesignParameters,
   OptimizationRequest,
   OptimizationResponse,
+  DemoCar,
+  DemoCloud,
+  DemoInference,
   ParameterSchema,
   PointNetDemoResponse,
   PredictionResponse,
@@ -154,6 +157,22 @@ export const api = {
 
   getParameters: (signal?: AbortSignal) =>
     requestJson<ParameterSchema>("/api/parameters", { signal }),
+
+  getDemoCars: (signal?: AbortSignal) =>
+    requestJson<{ cars: DemoCar[] }>("/api/demo/pointnet/cars", { signal }),
+
+  getDemoCloud: (id: string, signal?: AbortSignal) =>
+    requestJson<DemoCloud>(`/api/demo/pointnet/cloud/${encodeURIComponent(id)}`, {
+      signal,
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+
+  inferDemoCar: (id: string, signal?: AbortSignal) =>
+    requestJson<DemoInference>(`/api/demo/pointnet/infer/${encodeURIComponent(id)}`, {
+      method: "POST",
+      signal,
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
 
   getPointNetDemo: (signal?: AbortSignal) =>
     requestJson<PointNetDemoResponse>("/api/demo/pointnet", {

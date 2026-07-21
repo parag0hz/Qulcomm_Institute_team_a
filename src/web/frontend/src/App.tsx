@@ -91,6 +91,11 @@ function stlDisplayPrediction(result: StlPredictionResponse): PredictionResponse
 }
 
 export default function App() {
+  useEffect(() => {
+    document.body.classList.add("paragon-studio");
+    return () => document.body.classList.remove("paragon-studio");
+  }, []);
+
   const [benchmarkOpen, setBenchmarkOpen] = useState(false);
   const [schema, setSchema] = useState<ParameterSchema | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);
