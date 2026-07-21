@@ -217,10 +217,14 @@ async def get_pointnet_cloud(design_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/demo/pointnet/infer/{design_id}")
-async def post_pointnet_infer(design_id: str) -> dict[str, Any]:
-    """해당 점군에 대해 실제로 모델을 돌린다."""
+async def post_pointnet_infer(design_id: str, points: int | None = None) -> dict[str, Any]:
+    """해당 점군에 대해 실제로 모델을 돌린다.
 
-    payload = await run_in_threadpool(infer_one, design_id)
+    points를 주면 FPS 순서 앞에서 그만큼만 잘라 넣는다 — 점 개수에 따라
+    정확도가 어떻게 달라지는지 보여주기 위한 것이다.
+    """
+
+    payload = await run_in_threadpool(infer_one, design_id, points)
     if payload is None:
         raise HTTPException(status_code=404, detail="Unknown demo design or missing demo assets.")
     return payload

@@ -169,7 +169,9 @@ export function PointCloudViewer({ points, busy = false }: PointCloudViewerProps
   return (
     <div className={`cloud-stage ${busy ? "is-busy" : ""}`}>
       <div className="cloud-canvas" ref={hostRef} />
-      <span className="cloud-hint">Drag to rotate · 2,048 points</span>
+      <span className="cloud-hint">
+        Drag to rotate · {(points?.length ?? 0).toLocaleString()} points
+      </span>
     </div>
   );
 }

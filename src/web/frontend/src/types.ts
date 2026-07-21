@@ -317,4 +317,6 @@ export interface DemoInference {
   warnings: string[];
   error_counts?: number;
   inference_ms: number;
+  n_points: number;
+  trained_points: number;
 }

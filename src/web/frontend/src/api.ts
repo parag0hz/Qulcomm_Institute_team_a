@@ -167,12 +167,16 @@ export const api = {
       timeoutMs: LONG_TIMEOUT_MS,
     }),
 
-  inferDemoCar: (id: string, signal?: AbortSignal) =>
-    requestJson<DemoInference>(`/api/demo/pointnet/infer/${encodeURIComponent(id)}`, {
-      method: "POST",
-      signal,
-      timeoutMs: LONG_TIMEOUT_MS,
-    }),
+  inferDemoCar: (id: string, points?: number, signal?: AbortSignal) =>
+    requestJson<DemoInference>(
+      `/api/demo/pointnet/infer/${encodeURIComponent(id)}` +
+        (points ? `?points=${points}` : ""),
+      {
+        method: "POST",
+        signal,
+        timeoutMs: LONG_TIMEOUT_MS,
+      },
+    ),
 
   getPointNetDemo: (signal?: AbortSignal) =>
     requestJson<PointNetDemoResponse>("/api/demo/pointnet", {

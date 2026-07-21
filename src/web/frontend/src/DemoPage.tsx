@@ -21,6 +21,7 @@ function LiveDemo() {
   const [loadingCloud, setLoadingCloud] = useState(false);
   const [inferring, setInferring] = useState(false);
   const [result, setResult] = useState<DemoInference | null>(null);
+  const [level, setLevel] = useState(2048);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -73,23 +74,27 @@ function LiveDemo() {
     setError(null);
     setResult(null);
     try {
-      const payload = await api.inferDemoCar(activeId, controller.signal);
+      const payload = await api.inferDemoCar(activeId, level, controller.signal);
       if (!controller.signal.aborted) setResult(payload);
     } catch (cause) {
       if (!controller.signal.aborted) setError(message(cause));
     } finally {
       if (!controller.signal.aborted) setInferring(false);
     }
-  }, [activeId]);
+  }, [activeId, level]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const active = cars.find((car) => car.id === activeId) ?? null;
+  const available = active?.point_count ?? 2048;
+  // FPS 순서가 보존돼 있어 앞에서 K개를 자르면 그대로 FPS-K 샘플이 된다.
+  const levels = [1, 128, 512, 1024, 2048, 4096].filter((n) => n <= available);
+  const shown = points ? points.slice(0, Math.min(level, points.length)) : null;
 
   return (
     <div className="demo-stage">
       <div className="stage-viewer">
-        <PointCloudViewer points={points} busy={loadingCloud || inferring} />
+        <PointCloudViewer points={shown} busy={loadingCloud || inferring} />
         {inferring && (
           <div className="stage-overlay" role="status">
             <span className="spinner" aria-hidden="true" />
@@ -114,6 +119,29 @@ function LiveDemo() {
               </button>
             ))}
             {!cars.length && !error && <span className="stage-muted">Loading…</span>}
+          </div>
+        </div>
+
+        <div className="stage-block">
+          <p className="stage-label">
+            Points fed to the model
+            <span className="level-value">{level.toLocaleString()}</span>
+          </p>
+          <div className="level-steps">
+            {levels.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`step ${n === level ? "active" : ""}`}
+                onClick={() => {
+                  setLevel(n);
+                  setResult(null);
+                }}
+              >
+                {n.toLocaleString()}
+                {n === 2048 && <em>trained</em>}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -145,14 +173,18 @@ function LiveDemo() {
               </strong>
             </div>
             <p className="stage-foot">
-              {result.inference_ms.toFixed(1)} ms of inference · 1 count = 0.001 Cd · under 5 counts is the
-              accuracy a surrogate model is expected to reach.
+              {result.n_points.toLocaleString()} points · {result.inference_ms.toFixed(1)} ms
+              {result.n_points !== result.trained_points && (
+                <> · the model was trained on {result.trained_points.toLocaleString()} points, so
+                this is a stress test</>
+              )}
+              . 1 count = 0.001 Cd; under 5 counts is the accuracy a surrogate is expected to reach.
             </p>
           </div>
         ) : (
           <p className="stage-foot">
             {active
-              ? `${active.body_type} body · ${active.point_count.toLocaleString()} points. These coordinates are the entire input.`
+              ? `${active.body_type} body. Step the point count up and watch the shape — and the prediction — resolve.`
               : "Pick a vehicle to see the point cloud the model reads."}
           </p>
         )}

@@ -60,6 +60,17 @@ def demo_clouds_path() -> Path | None:
     )
 
 
+def view_clouds_path() -> Path | None:
+    """FPS 순서를 보존한 조밀 점군(있으면). 없으면 학습용 2048점으로 대체한다."""
+
+    override = os.environ.get("PARAGON_DEMO_VIEW_CLOUDS")
+    return _first_existing(
+        Path(override) if override else None,
+        APP_ROOT / "models" / "demo_clouds_view.npz",
+        REPO_ROOT.parent / "ml" / "models" / "demo_clouds_view.npz",
+    )
+
+
 @dataclass(frozen=True)
 class CloudPrediction:
     cd: float
@@ -171,6 +182,20 @@ def load_demo_clouds() -> Tuple[np.ndarray, List[Dict[str, object]]] | None:
     return clouds, meta
 
 
+def load_view_clouds() -> Tuple[np.ndarray, List[Dict[str, object]]] | None:
+    path = view_clouds_path()
+    if path is None:
+        return None
+    with np.load(path, allow_pickle=False) as bundle:
+        return np.asarray(bundle["pts"], dtype=np.float32), json.loads(str(bundle["meta"]))
+
+
+def _clouds_for_demo() -> Tuple[np.ndarray, List[Dict[str, object]]] | None:
+    """조밀 점군이 있으면 그쪽을, 없으면 학습용 2048점을 쓴다."""
+
+    return load_view_clouds() or load_demo_clouds()
+
+
 def demo_predictions() -> Dict[str, object]:
     """학습에서 영구 제외된 홀드아웃 차량에 대해 라이브 추론을 돌린다.
 
@@ -225,7 +250,7 @@ def demo_predictions() -> Dict[str, object]:
 def demo_cars() -> List[Dict[str, object]]:
     """데모 차량 목록. 점군은 빼고 메타데이터만 — 목록은 가벼워야 한다."""
 
-    bundle = load_demo_clouds()
+    bundle = _clouds_for_demo()
     if bundle is None:
         return []
     clouds, meta = bundle
@@ -243,7 +268,7 @@ def demo_cars() -> List[Dict[str, object]]:
 def demo_cloud(design_id: str) -> Dict[str, object] | None:
     """한 대의 점군 좌표. 브라우저에서 3D로 그리기 위한 것."""
 
-    bundle = load_demo_clouds()
+    bundle = _clouds_for_demo()
     if bundle is None:
         return None
     clouds, meta = bundle
@@ -260,24 +285,34 @@ def demo_cloud(design_id: str) -> Dict[str, object] | None:
     return None
 
 
-def infer_one(design_id: str) -> Dict[str, object] | None:
-    """한 대에 대해 실제로 추론을 돌리고 소요 시간을 함께 돌려준다."""
+def infer_one(design_id: str, n_points: int | None = None) -> Dict[str, object] | None:
+    """한 대에 대해 추론을 돌린다.
 
-    bundle = load_demo_clouds()
+    FPS 순서가 보존돼 있으므로 앞에서 n_points개를 자르면 그 크기의 FPS 샘플이
+    된다. 점 개수를 바꿔가며 정확도가 어떻게 달라지는지 보여주기 위한 인자다.
+    학습 조건은 EXPECTED_POINTS(2048)이며 그 외 값은 실험으로 표시된다.
+    """
+
+    bundle = _clouds_for_demo()
     if bundle is None or not runner().available:
         return None
     clouds, meta = bundle
     for index, entry in enumerate(meta):
         if entry.get("id") != design_id:
             continue
+        cloud = clouds[index]
+        if n_points is not None:
+            cloud = cloud[: max(1, min(int(n_points), len(cloud)))]
         started = time.perf_counter()
-        value = float(runner().predict(clouds[index : index + 1])[0])
+        value = float(runner().predict(cloud[None])[0])
         elapsed_ms = (time.perf_counter() - started) * 1000.0
-        guarded = _guard(value, clouds.shape[1])
+        guarded = _guard(value, len(cloud))
         true_cd = entry.get("true_cd")
         payload: Dict[str, object] = {
             "id": design_id,
             "body_type": entry.get("body_type"),
+            "n_points": int(len(cloud)),
+            "trained_points": EXPECTED_POINTS,
             "true_cd": round(float(true_cd), 5) if true_cd is not None else None,
             "inference_ms": round(elapsed_ms, 2),
             **guarded.public_dict(),
