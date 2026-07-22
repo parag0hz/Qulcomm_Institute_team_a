@@ -23,6 +23,8 @@ function LiveDemo() {
   const [result, setResult] = useState<DemoInference | null>(null);
   // 애니메이션이 지금 몇 점을 그리고 있는지(표시용). 추론은 학습 조건으로 고정한다.
   const [density, setDensity] = useState(0);
+  // 차체를 보여주는 구간에는 점 개수를 말하지 않는다(0점이 아니라 "아직 점이 아님").
+  const [pointsVisible, setPointsVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -97,7 +99,10 @@ function LiveDemo() {
           meshUrl="/static/models/drivaer_reference.glb"
           busy={loadingCloud || inferring}
           freezeAt={result ? result.n_points : null}
-          onDensityChange={setDensity}
+          onDensityChange={(count, visible) => {
+            setPointsVisible(visible);
+            if (visible) setDensity(count);
+          }}
         />
         {inferring && (
           <div className="stage-overlay" role="status">
@@ -128,10 +133,20 @@ function LiveDemo() {
 
         <div className="stage-block">
           <p className="stage-label">
-            {result ? "Points the model actually read" : "Points on screen"}
+            {result
+              ? "Points the model actually read"
+              : pointsVisible
+                ? "Points on screen"
+                : "Reference geometry"}
             <span className="level-value">
-              {density.toLocaleString()}
-              <small> / {available.toLocaleString()}</small>
+              {result || pointsVisible ? (
+                <>
+                  {density.toLocaleString()}
+                  <small> / {available.toLocaleString()}</small>
+                </>
+              ) : (
+                <small>solid mesh</small>
+              )}
             </span>
           </p>
           <div className="density-bar" aria-hidden="true">

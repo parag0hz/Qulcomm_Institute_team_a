@@ -16,13 +16,19 @@ interface PointCloudViewerProps {
   meshUrl?: string;
   /** 밀도 애니메이션을 멈추고 이 개수로 고정한다(추론 결과를 볼 때). */
   freezeAt?: number | null;
-  onDensityChange?: (count: number) => void;
+  onDensityChange?: (count: number, pointsVisible: boolean) => void;
 }
 
 const FOV = 34;
 const MIN_POINTS = 96;
-// 차체가 점으로 녹아내리는 시간. 짧으면 못 보고 길면 기다리게 된다.
-const DISSOLVE_MS = 1900;
+// 한 바퀴: 차체 → 흩어짐 → 밀도 호흡 → 다시 뭉침. 무한 반복한다.
+const LOOP_MS = 13000;
+// 사이클 안에서의 구간 경계(비율).
+const HOLD_MESH = 0.07;   // 차체를 온전히 보여주는 구간
+const SCATTER_END = 0.24; // 흩어짐이 끝나는 지점
+const BREATHE_END = 0.76; // 점군 상태로 밀도가 오르내리는 구간
+const GATHER_END = 0.93;  // 다시 뭉침이 끝나는 지점
+const SMOOTH = (u: number) => u * u * (3 - 2 * u);
 // 한 번 차오르고 빠지는 데 걸리는 시간. 너무 빠르면 산만하고 느리면 지루하다.
 const CYCLE_MS = 7200;
 
@@ -41,16 +47,15 @@ export function PointCloudViewer({
   const fitRef = useRef({ cx: 1.5, cy: 0, cz: 0.6, spanXY: 4.8, spanZ: 1.4 });
   const totalRef = useRef(0);
   const freezeRef = useRef<number | null>(null);
-  const notifyRef = useRef<((count: number) => void) | undefined>(undefined);
+  const notifyRef = useRef<((count: number, visible: boolean) => void) | undefined>(undefined);
   const lastNotifiedRef = useRef(0);
   // 고정 지점으로 뚝 끊지 않고 흘러들어가게 한다.
   const countRef = useRef(0);
   const meshRef = useRef<THREE.Group | null>(null);
   const meshMatsRef = useRef<THREE.MeshStandardMaterial[]>([]);
-  // 인트로가 끝나기 전에는 밀도 호흡을 시작하지 않는다.
-  const dissolveStartRef = useRef<number | null>(null);
-  const introDoneRef = useRef(false);
-  const introEndRef = useRef<number | null>(null);
+  // 메시가 준비된 시점부터 사이클을 센다.
+  const loopStartRef = useRef<number | null>(null);
+  const meshReadyRef = useRef(false);
 
   freezeRef.current = freezeAt;
   notifyRef.current = onDensityChange;
@@ -108,14 +113,13 @@ export function PointCloudViewer({
           meshMatsRef.current = mats;
           meshRef.current = group;
           scene.add(group);
-          dissolveStartRef.current = performance.now();
+          meshReadyRef.current = true;
+          loopStartRef.current = performance.now();
         })
         .catch(() => {
           // 메시를 못 받아도 데모는 점군만으로 성립한다.
-          introDoneRef.current = true;
+          meshReadyRef.current = false;
         });
-    } else {
-      introDoneRef.current = true;
     }
 
     let frame = 0;
@@ -162,59 +166,74 @@ export function PointCloudViewer({
 
       // 점을 매 프레임 다시 만들지 않는다. 지오메트리는 그대로 두고 그리는
       // 개수만 바꾼다 — FPS 순서라 앞에서 n개가 곧 FPS-n 샘플이다.
-      // 인트로: 차체가 옅어지는 만큼 점이 차오른다. 두 동작이 같은 진행률을
-      // 공유해야 '녹아내린다'로 읽히고, 따로 놀면 그냥 겹쳐 보인다.
+      // 차체 ↔ 점군을 오가는 한 바퀴. 메시가 옅어지는 만큼 점이 차오르고,
+      // 점군 상태에서는 밀도가 오르내리다가, 다시 메시로 뭉친다.
       const cloud = cloudRef.current;
       const total = totalRef.current;
-      const dissolveStart = dissolveStartRef.current;
-      if (dissolveStart !== null && !introDoneRef.current) {
-        const raw = Math.min(1, (performance.now() - dissolveStart) / DISSOLVE_MS);
-        const progress = raw * raw * (3 - 2 * raw);
-        meshMatsRef.current.forEach((material) => {
-          material.opacity = 1 - progress;
-        });
-        if (meshRef.current) meshRef.current.visible = progress < 1;
-        if (cloud) {
-          (cloud.material as THREE.PointsMaterial).opacity = 0.92 * progress;
-          if (total > 0) {
-            countRef.current = MIN_POINTS + (total - MIN_POINTS) * progress;
-            cloud.geometry.setDrawRange(0, Math.max(1, Math.round(countRef.current)));
-          }
-        }
-        if (raw >= 1) {
-          introDoneRef.current = true;
-          // 호흡이 지금 밀도에서 자연스럽게 이어지도록 위상을 맞춘다.
-          introEndRef.current = performance.now();
-        }
-      }
+      if (cloud && total > 0) {
+        let meshAmount = 0;   // 1이면 차체만, 0이면 점군만
+        let densityAmount = 1; // 그릴 점의 비율
 
-      if (cloud && total > 0 && introDoneRef.current) {
         if (freezeRef.current) {
-          // 결과가 나오면 모델이 실제로 읽은 개수로 수렴시킨다. 순간이동시키면
-          // 화면이 갑자기 성겨져 고장처럼 보이므로 흘러들어가게 둔다.
+          // 결과가 떠 있는 동안에는 사이클을 멈춘다. 답을 읽는 중에 화면이
+          // 계속 변하면 눈이 결과에 머물지 못한다.
           const target = Math.min(freezeRef.current, total);
           countRef.current += (target - countRef.current) * 0.07;
           if (Math.abs(target - countRef.current) < 2) countRef.current = target;
+          densityAmount = -1; // countRef를 그대로 쓴다는 표시
+        } else if (meshReadyRef.current && loopStartRef.current !== null) {
+          const phase = ((performance.now() - loopStartRef.current) % LOOP_MS) / LOOP_MS;
+          if (phase < HOLD_MESH) {
+            meshAmount = 1;
+            densityAmount = 0;
+          } else if (phase < SCATTER_END) {
+            const k = SMOOTH((phase - HOLD_MESH) / (SCATTER_END - HOLD_MESH));
+            meshAmount = 1 - k;
+            densityAmount = k;
+          } else if (phase < BREATHE_END) {
+            const u = (phase - SCATTER_END) / (BREATHE_END - SCATTER_END);
+            // 양 끝이 최대 밀도라 앞뒤 크로스페이드와 매끄럽게 이어진다.
+            densityAmount = 0.12 + 0.88 * 0.5 * (1 + Math.cos(2 * Math.PI * u));
+          } else if (phase < GATHER_END) {
+            const k = SMOOTH((phase - BREATHE_END) / (GATHER_END - BREATHE_END));
+            meshAmount = k;
+            densityAmount = 1 - k;
+          } else {
+            meshAmount = 1;
+            densityAmount = 0;
+          }
         } else {
-          // 삼각파를 부드럽게 다듬어 차오르고 빠지는 호흡을 만든다.
-          // 인트로가 끝난 지점(밀도 최대)에서 이어받도록 반주기 오프셋을 준다.
-          const base = introEndRef.current ?? started;
-          const phase = (((performance.now() - base) + CYCLE_MS / 2) % CYCLE_MS) / CYCLE_MS;
+          // 메시가 없으면 점군만으로 호흡한다.
+          const phase = ((performance.now() - started) % CYCLE_MS) / CYCLE_MS;
           const triangle = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-          const eased = triangle * triangle * (3 - 2 * triangle);
-          countRef.current = MIN_POINTS + (total - MIN_POINTS) * eased;
+          densityAmount = SMOOTH(triangle);
+        }
+
+        if (densityAmount >= 0) {
+          countRef.current = MIN_POINTS + (total - MIN_POINTS) * densityAmount;
         }
         const count = Math.max(1, Math.round(countRef.current));
         cloud.geometry.setDrawRange(0, count);
-        // 호흡 중에는 리렌더를 아끼려 큰 변화만 알린다. 다만 고정 지점에
-        // 도달했을 때는 반드시 정확한 값을 알려야 한다 — 화면이 2,048점을
-        // 그리면서 라벨이 2,076이라고 말하면 그건 거짓말이다.
+        (cloud.material as THREE.PointsMaterial).opacity = 0.92 * (1 - meshAmount);
+
+        if (meshRef.current) {
+          meshRef.current.visible = meshAmount > 0.002;
+          meshMatsRef.current.forEach((material) => {
+            material.opacity = meshAmount;
+          });
+        }
+
+        const pointsVisible = meshAmount < 0.5;
         const settled =
           freezeRef.current != null && count === Math.min(freezeRef.current, total);
         const changedEnough = Math.abs(count - lastNotifiedRef.current) > total * 0.02;
-        if (settled ? lastNotifiedRef.current !== count : changedEnough) {
+        if (settled ? lastNotifiedRef.current !== count : pointsVisible && changedEnough) {
           lastNotifiedRef.current = count;
-          notifyRef.current?.(count);
+          notifyRef.current?.(count, pointsVisible);
+        }
+        if (!pointsVisible && lastNotifiedRef.current !== 0) {
+          lastNotifiedRef.current = 0;
+          notifyRef.current?.(0, false);
         }
       }
 
@@ -306,7 +325,7 @@ export function PointCloudViewer({
       sizeAttenuation: true,
       transparent: true,
       // 인트로가 남아 있으면 보이지 않게 시작해 메시가 옅어지며 드러난다.
-      opacity: introDoneRef.current ? 0.92 : 0,
+      opacity: meshReadyRef.current ? 0 : 0.92,
     });
 
     const cloud = new THREE.Points(geometry, material);
