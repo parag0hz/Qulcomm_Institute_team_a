@@ -37,6 +37,8 @@ export function PointCloudViewer({
   const freezeRef = useRef<number | null>(null);
   const notifyRef = useRef<((count: number) => void) | undefined>(undefined);
   const lastNotifiedRef = useRef(0);
+  // 고정 지점으로 뚝 끊지 않고 흘러들어가게 한다.
+  const countRef = useRef(0);
 
   freezeRef.current = freezeAt;
   notifyRef.current = onDensityChange;
@@ -111,18 +113,28 @@ export function PointCloudViewer({
       const cloud = cloudRef.current;
       const total = totalRef.current;
       if (cloud && total > 0) {
-        let count: number;
         if (freezeRef.current) {
-          count = Math.min(freezeRef.current, total);
+          // 결과가 나오면 모델이 실제로 읽은 개수로 수렴시킨다. 순간이동시키면
+          // 화면이 갑자기 성겨져 고장처럼 보이므로 흘러들어가게 둔다.
+          const target = Math.min(freezeRef.current, total);
+          countRef.current += (target - countRef.current) * 0.07;
+          if (Math.abs(target - countRef.current) < 2) countRef.current = target;
         } else {
           // 삼각파를 부드럽게 다듬어 차오르고 빠지는 호흡을 만든다.
           const phase = ((performance.now() - started) % CYCLE_MS) / CYCLE_MS;
           const triangle = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
           const eased = triangle * triangle * (3 - 2 * triangle);
-          count = Math.round(MIN_POINTS + (total - MIN_POINTS) * eased);
+          countRef.current = MIN_POINTS + (total - MIN_POINTS) * eased;
         }
+        const count = Math.max(1, Math.round(countRef.current));
         cloud.geometry.setDrawRange(0, count);
-        if (Math.abs(count - lastNotifiedRef.current) > total * 0.02) {
+        // 호흡 중에는 리렌더를 아끼려 큰 변화만 알린다. 다만 고정 지점에
+        // 도달했을 때는 반드시 정확한 값을 알려야 한다 — 화면이 2,048점을
+        // 그리면서 라벨이 2,076이라고 말하면 그건 거짓말이다.
+        const settled =
+          freezeRef.current != null && count === Math.min(freezeRef.current, total);
+        const changedEnough = Math.abs(count - lastNotifiedRef.current) > total * 0.02;
+        if (settled ? lastNotifiedRef.current !== count : changedEnough) {
           lastNotifiedRef.current = count;
           notifyRef.current?.(count);
         }
@@ -216,6 +228,7 @@ export function PointCloudViewer({
     cloudRef.current = cloud;
     totalRef.current = points.length;
     lastNotifiedRef.current = 0;
+    countRef.current = MIN_POINTS;
     spinRef.current = true;
   }, [points]);
 

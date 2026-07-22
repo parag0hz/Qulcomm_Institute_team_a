@@ -127,9 +127,9 @@ function LiveDemo() {
 
         <div className="stage-block">
           <p className="stage-label">
-            Points on screen
+            {result ? "Points the model actually read" : "Points on screen"}
             <span className="level-value">
-              {(result ? result.n_points : density).toLocaleString()}
+              {density.toLocaleString()}
               <small> / {available.toLocaleString()}</small>
             </span>
           </p>
@@ -166,18 +166,17 @@ function LiveDemo() {
               </strong>
             </div>
             <p className="stage-foot">
-              {result.n_points.toLocaleString()} points · {result.inference_ms.toFixed(1)} ms
-              {result.n_points !== result.trained_points && (
-                <> · the model was trained on {result.trained_points.toLocaleString()} points, so
-                this is a stress test</>
-              )}
-              . 1 count = 0.001 Cd; under 5 counts is the accuracy a surrogate is expected to reach.
+              <strong className="foot-lead">
+                {result.n_points.toLocaleString()} points were enough.
+              </strong>{" "}
+              That is all the network read, and it answered in {result.inference_ms.toFixed(1)} ms.
+              1 count = 0.001 Cd; under 5 counts is the accuracy a surrogate is expected to reach.
             </p>
           </div>
         ) : (
           <p className="stage-foot">
             {active
-              ? `${active.body_type} body. Step the point count up and watch the shape — and the prediction — resolve.`
+              ? `${active.body_type} body, sampled straight off the surface. Watch it thicken and thin, then ask the model what it reads.`
               : "Pick a vehicle to see the point cloud the model reads."}
           </p>
         )}
