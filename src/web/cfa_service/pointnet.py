@@ -302,9 +302,12 @@ def infer_one(design_id: str, n_points: int | None = None) -> Dict[str, object] 
     for index, entry in enumerate(meta):
         if entry.get("id") != design_id:
             continue
-        cloud = clouds[index]
-        if n_points is not None:
-            cloud = cloud[: max(1, min(int(n_points), len(cloud)))]
+        # 기본값은 반드시 학습 조건이다. 표시용 조밀 점군(16k)이 들어오면
+        # 그대로 넣고 싶은 유혹이 있지만, 이 모델은 2048점으로 학습돼 점이
+        # 많아지면 오히려 오차가 커진다(실측 4.96 → 24.09 counts).
+        # 정확도 주장은 학습 조건에서 나와야 하므로 명시하지 않으면 2048이다.
+        target = EXPECTED_POINTS if n_points is None else max(1, int(n_points))
+        cloud = clouds[index][: min(target, len(clouds[index]))]
         started = time.perf_counter()
         value = float(runner().predict(cloud[None])[0])
         elapsed_ms = (time.perf_counter() - started) * 1000.0
