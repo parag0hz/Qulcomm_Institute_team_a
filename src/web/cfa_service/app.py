@@ -33,7 +33,7 @@ from .predictor import (
     provider_status,
     test_vertex_provider,
 )
-from .pointnet import demo_predictions, pointnet_status
+from .pointnet import demo_cars, demo_cloud, demo_predictions, infer_one, pointnet_status
 from .schemas import CopilotRequest, DesignParameters, OptimizeRequest, VertexTestRequest
 from .stl import parse_stl_bytes
 
@@ -197,6 +197,37 @@ async def get_pointnet_demo() -> dict[str, Any]:
     """
 
     return await run_in_threadpool(demo_predictions)
+
+
+@app.get("/api/demo/pointnet/cars")
+def get_pointnet_cars() -> dict[str, Any]:
+    """데모 차량 목록(메타데이터만)."""
+
+    return {"cars": demo_cars()}
+
+
+@app.get("/api/demo/pointnet/cloud/{design_id}")
+async def get_pointnet_cloud(design_id: str) -> dict[str, Any]:
+    """한 대의 점군 좌표 — 브라우저가 3D로 그린다."""
+
+    payload = await run_in_threadpool(demo_cloud, design_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Unknown demo design or missing demo assets.")
+    return payload
+
+
+@app.post("/api/demo/pointnet/infer/{design_id}")
+async def post_pointnet_infer(design_id: str, points: int | None = None) -> dict[str, Any]:
+    """해당 점군에 대해 실제로 모델을 돌린다.
+
+    points를 주면 FPS 순서 앞에서 그만큼만 잘라 넣는다 — 점 개수에 따라
+    정확도가 어떻게 달라지는지 보여주기 위한 것이다.
+    """
+
+    payload = await run_in_threadpool(infer_one, design_id, points)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Unknown demo design or missing demo assets.")
+    return payload
 
 
 @app.get("/api/parameters")

@@ -28,7 +28,11 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
-body { overflow: hidden; color: var(--ink); background: var(--ground); font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+/* 스크롤 잠금은 스튜디오에서만. 전역으로 걸면 /demo 같은 문서형 페이지의
+   휠 스크롤이 죽는다 — 번들러는 CSS를 한 파일로 합치므로 import 위치로는
+   스코프가 나뉘지 않는다. */
+body.paragon-studio { overflow: hidden; }
+body { color: var(--ink); background: var(--ground); font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
