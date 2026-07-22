@@ -11,6 +11,77 @@
 
 ---
 
+## 0. ⛔ 16GB에서 막힌 것 — A100이 풀어야 할 목록 (2026-07-22 갱신)
+
+RTX 5080(15.46 GiB 가용)에서 **실제로 실패한 것들**. 전부 재현 로그가 남아 있다.
+
+| # | 막힌 작업 | 증상 | 영향 |
+|---|---|---|---|
+| **1** | **RegDGCNN 2048점 학습** | `Tried to allocate 1.25 GiB` OOM | **4백본 비교를 전부 1024점으로 강등**해야 했다 |
+| **2** | RegDGCNN 4096점 | 미시도 (2048도 안 되므로) | 점 개수 포화 검증 불가 |
+| **3** | **DGCNN 100k 입력** | bs=1에서 `1192.09 GiB` 요구 → OOM | 100k 실험에서 **"불가"로 기록** |
+| **4** | **RegDGCNN 100k 입력** | 동일 (kNN N×N 행렬) | 동일 |
+| **5** | PointNet 100k 입력 | bs 32/16/8 전부 OOM → **bs=4만 가능** | 배치 통계 붕괴로 R² 0.968→0.911 하락. **점 개수 효과와 배치 교란이 뒤섞임** |
+| **6** | RegDGCNN 2048점 해석 실험 | OOM (위 #1과 동일) | Grad-CAM·가림실험을 1024점으로 재실행해야 했다 |
+
+**시간 제약(OOM은 아니지만 실질적 차단)**
+
+| # | 작업 | 5080 소요 | 상태 |
+|---|---|---|---|
+| 7 | RegDGCNN 5-fold (1024점) | **6.9시간** | 완료했으나 반복 불가 |
+| 8 | DGCNN 하이퍼파라미터 탐색 | ~3시간 | **미실행** |
+| 9 | RegDGCNN 하이퍼파라미터 탐색 | ~20시간 | **미실행** |
+
+**공정성 문제 (A100에서 함께 해결할 것)**
+
+`#10` **RegDGCNN fold별 조기종료 시점이 제각각이라 과소평가됐을 수 있다.** patience 30으로 인해:
+
+| fold | 종료 epoch | test R² |
+|---|---:|---:|
+| 1 | **ep51** (조기) | **0.750** ← 최저 |
+| 2 | ep116 (거의 완주) | 0.779 |
+| 3 | ep70 | 0.784 |
+| 4 | ep73 | 0.793 |
+| 5 | ep73 | 0.790 |
+
+cosine 스케줄이 120 epoch 기준이라 중간에 끊기면 LR 감쇠가 미완이다. PointNet·DGCNN은 대부분 ep107~119까지 갔다.
+같은 현상으로 배포용 PointNet이 ep43 종료 시 0.814 → 완주 시 0.892로 **0.078 차이**가 났다.
+**→ A100에서는 `--patience 200`(사실상 해제)으로 전 백본을 완주시켜 공정성을 확보할 것.**
+
+### A100에서 할 일 (위 목록에 대응)
+
+```bash
+# ①②⑥ 4백본 × 2048점, 조기종료 없이 완주
+python scripts/run_protocol_comparison.py --only dl --npoints 2048 \
+  --backbones pointnet dgcnn regdgcnn --out outputs/protocol_dl2048_a100.json
+#   ⚠ run_protocol_comparison.py 의 run_dl(patience=30)을 200으로 올릴 것 (#10 공정성)
+
+# ② 4096점 (fps4096.npz 필요)
+python scripts/run_protocol_comparison.py --only dl --npoints 4096 --cache data/fps4096.npz \
+  --backbones pointnet dgcnn regdgcnn --out outputs/protocol_dl4096_a100.json
+
+# ③④⑤ 100k 전체 입력 — A100 40/80GB면 DGCNN/RegDGCNN도 가능할 수 있다
+python scripts/train_100k.py --build-cache          # 캐시 없을 때만
+python scripts/train_100k.py --backbone pointnet --bs 32    # bs=4 → 32로 배치 교란 제거
+python scripts/train_100k.py --backbone dgcnn --bs 2        # 5080에선 bs=1도 불가였음
+python scripts/train_100k.py --backbone regdgcnn --bs 2
+
+# ⑧⑨ HPO (tune_optuna.py의 tune_dl을 BACKBONES[backbone] 받도록 일반화 필요)
+python scripts/tune_optuna.py --models pointnet --dl-trials 25
+
+# ⑥ 해석 실험을 2048점으로 (RegDGCNN 포함)
+python scripts/saliency_compare.py --backbones pointnet dgcnn regdgcnn --npoints 2048 --train
+python scripts/gradcam_all.py    --backbones pointnet dgcnn regdgcnn --npoints 2048 --n 3
+python scripts/occlusion_test.py --backbones pointnet dgcnn regdgcnn --npoints 2048 --n 5
+```
+
+> **Triplane은 제외한다.** TripNet 공식 코드가 비공개라 우리 `TriplaneCNN`은 표현 아이디어만 가져온
+> 자체 경량 재구현이다. 성능(1024점 R² 0.339)은 **TripNet이 아니라 이 구현의 성능**이므로,
+> 성능 표에 약한 baseline으로만 남기고 **해석 실험·논문 비교에는 쓰지 않는다.**
+
+
+---
+
 ## 1. 배경 — 왜 이 프로토콜인가 (리뷰 피드백 반영본)
 
 지도교수/리뷰어 피드백으로 평가 방식을 전면 교체했다. **이 규칙은 바꾸지 말 것.**
@@ -136,15 +207,31 @@ python scripts/run_protocol_comparison.py --only dl --npoints 4096 \
 
 → **튜닝해도 0.56대에서 수렴** = 설계 파라미터만으로는 R² ≈ 0.57이 천장.
 
-### DL 트랙
-| 모델 | 점수 | R² | MAE | 비고 |
-|---|---|---:|---:|---|
-| **PointNet 2048** | 2048 | **0.853 ± 0.031** | 0.00686 | 기본값 |
-| **PointNet 2048 (튜닝)** | 2048 | **0.865 ± 0.038** | 0.00653 | lr 0.00125 / wd 2.1e-5 / bs 32 / dropout 0.4 / **emb 512** |
-| PointNet 1024 | 1024 | 0.831 ± 0.019 | 0.00742 | |
-| Triplane 1024 | 1024 | **0.370 ± 0.036** | 0.01467 | **ML보다도 낮음** |
-| DGCNN 1024 | 1024 | *(5080에서 실행 중)* | | |
-| RegDGCNN 1024 | 1024 | *(미실행 — 4시간 소요로 보류)* | | |
+### DL 트랙 — **1024점 5-fold 완료** (2026-07-22)
+| 백본 | R² | MAE | MAPE | 순위acc | 비고 |
+|---|---:|---:|---:|---:|---|
+| **PointNet** | **0.8483 ± 0.0141** | 0.00701 | 2.74% | 87.8% | 최고 |
+| DGCNN | 0.8177 ± 0.0077 | 0.00777 | 3.05% | 86.3% | |
+| RegDGCNN | 0.7792 ± 0.0152 | 0.00864 | 3.40% | 86.4% | **조기종료로 과소평가 가능(§0 #10)** |
+| Triplane | 0.3394 ± 0.0935 | 0.01496 | 5.78% | 73.6% | 자체 재구현, 참고용 |
+
+**2048점 PointNet**(기본 0.853 / 튜닝 0.865)은 별도 실행. 2048점 4백본 동시 비교는 **A100 담당**.
+
+차종별 R² — PointNet만 균일:
+| 백본 | Fastback | Estate | Notchback |
+|---|---:|---:|---:|
+| PointNet | 0.778 | 0.780 | 0.777 |
+| DGCNN | 0.750 | 0.727 | 0.724 |
+| RegDGCNN | 0.705 | 0.658 | 0.671 |
+
+### 모델 해석 (가림 실험, 2048점 · 대조군 대비 배율)
+| 구역 | PointNet | DGCNN |
+|---|---:|---:|
+| **하부(언더바디)** | **26.1×** | 1.8× |
+| 후면 | 6.6× | **2.3×** |
+
+**PointNet은 하부(지면 기준선 → 절대 높이), DGCNN은 후면(후류)에 의존** — 아키텍처마다 전략이 다르다.
+RegDGCNN은 2048점 OOM으로 미포함(§0 #6) → **A100에서 채울 것**.
 
 ### 확인된 결론 (A100 결과로 검증/반증할 것)
 1. **동일 조건에서도 DL 압도**: PointNet 0.853 vs 최고 ML 0.573 → **격차 +0.28**. 튜닝 후에도 0.865 vs 0.563으로 **격차 유지(+0.30)** — 하이퍼파라미터로 설명되지 않는 모달리티 우위.

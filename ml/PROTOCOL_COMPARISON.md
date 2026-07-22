@@ -1,6 +1,6 @@
 # ML vs DL 정량 비교 — 동일 데이터 · 동일 프로토콜
 
-리뷰 피드백 #1(동일 데이터) · #2(k-fold) · #4(R²·MAE·MSE) · #6(데모 홀드아웃)을 모두 반영한 재실행 결과. 생성: [scripts/run_protocol_comparison.py](scripts/run_protocol_comparison.py), 프로토콜: [scripts/protocol.py](scripts/protocol.py), 원본: `outputs/protocol_comparison.json`
+리뷰 피드백 #1(동일 데이터) · #2(k-fold) · #4(R²·MAE·MSE) · #6(데모 홀드아웃)을 모두 반영한 재실행 결과. 생성: [scripts/run_protocol_comparison.py](scripts/run_protocol_comparison.py), 프로토콜: [scripts/protocol.py](scripts/protocol.py), 원본: `outputs/protocol_comparison.json`(ML + PointNet 2048점) · `outputs/protocol_dl1024.json`(DL 백본 4종 1024점 → §6)
 
 ## 1. 실험 조건
 
@@ -61,7 +61,45 @@
 3. **안정성**: 5-fold 표준편차가 R² 0.018~0.033으로 작아 fold 운에 좌우되지 않음. 단 ML의 Estate는 편차가 ±0.142로 매우 불안정.
 4. **순위 정확도 격차는 상대적으로 작음**: PointNet 88.5% vs AutoGluon 78.3%. ML도 "둘 중 어느 쪽이 저항이 낮은가"는 78% 수준으로 맞힌다. **절대값 예측(MAE/MSE)에서 격차가 훨씬 크다**.
 
-## 6. 이전(불공정) 수치와의 관계
+## 6. DL 백본 비교 — 1024점 (동일 프로토콜)
+
+§2~5의 PointNet은 2048점이었다. **같은 3,704대·같은 K=5 fold**에서 포인트클라우드 백본 4종을 1024점으로 맞대어 비교했다(DL 전용 실행). 실행 `run_protocol_comparison.py --only dl --npoints 1024 --backbones pointnet triplane dgcnn regdgcnn`, 원본 `outputs/protocol_dl1024.json`, 로그 `outputs/protocol_dl1024.log`.
+
+### 6-1. 전체 (5-fold 평균 ± 표준편차)
+
+| 백본 | 파라미터 | R² | MAE(counts) | MSE | RMSE | MAPE | 순위acc |
+|---|---|---:|---:|---:|---:|---:|---:|
+| **PointNet** | 0.81 M | **+0.8483 ± 0.0141** | **7.01** | 7.93e-05 | 0.00890 | 2.74% | **87.8%** |
+| DGCNN | 1.80 M | +0.8177 ± 0.0077 | 7.77 | 9.55e-05 | 0.00977 | 3.05% | 86.3% |
+| RegDGCNN | — | +0.7792 ± 0.0152 | 8.64 | 1.16e-04 | 0.01076 | 3.40% | 86.4% |
+| Triplane | — | +0.3394 ± 0.0935 | 14.96 | 3.46e-04 | 0.01856 | 5.78% | 73.6% |
+
+### 6-2. 차종별 R²
+
+| 백본 | 전체 | Fastback | Estate | Notchback |
+|---|---:|---:|---:|---:|
+| **PointNet** | +0.848 | +0.778 ± 0.029 | **+0.780 ± 0.041** | **+0.777 ± 0.016** |
+| DGCNN | +0.818 | +0.750 ± 0.023 | +0.727 ± 0.030 | +0.724 ± 0.014 |
+| RegDGCNN | +0.779 | +0.705 ± 0.022 | +0.658 ± 0.034 | +0.671 ± 0.034 |
+| Triplane | +0.339 | +0.152 ± 0.136 | **-0.160 ± 0.248** | +0.134 ± 0.053 |
+
+### 6-3. 차종별 MAE (drag counts)
+
+| 백본 | 전체 | Fastback | Estate | Notchback |
+|---|---:|---:|---:|---:|
+| **PointNet** | 7.01 | 7.03 | 7.01 | 6.99 |
+| DGCNN | 7.77 | 7.62 | 7.75 | 7.97 |
+| RegDGCNN | 8.64 | 8.44 | 8.73 | 8.74 |
+| Triplane | 14.96 | 14.08 | 16.30 | 14.31 |
+
+### 6-4. 관찰
+
+1. **순위: PointNet > DGCNN > RegDGCNN ≫ Triplane.** 전역 max-pool(PointNet)이 국소 이웃 집계(EdgeConv 계열 DGCNN·RegDGCNN)보다 낫다 — "Cd는 국소 곡률이 아니라 전역 실루엣이 지배"라는 결론과 일치.
+2. **1024 ≈ 2048.** PointNet 1024점 +0.848(±0.014)은 §2의 2048점 +0.853(±0.031)과 사실상 동일하고 fold 편차는 오히려 절반. **폰 예산(1024점)으로 충분**함을 재확인.
+3. **PointNet만 차종 균일**(0.777~0.780). DGCNN·RegDGCNN은 Estate·Notchback에서 더 크게 떨어지고, **Triplane은 Estate에서 붕괴**(-0.160, 평균 예측만도 못함) — 고정 해상도 점유 격자가 분산 좁은 신세대 형상차를 못 담는다.
+4. **RegDGCNN은 비용 대비 이득 없음.** 5세트 학습에 ~6.9시간(세트당 최대 ~7,500초)으로 가장 느린데 성능은 DGCNN보다도 낮다.
+
+## 7. 이전(불공정) 수치와의 관계
 
 | | 이전 (서로 다른 데이터) | 현재 (동일 데이터) |
 |---|---|---|
@@ -70,7 +108,7 @@
 
 PointNet이 0.968 → 0.853으로 내려간 것은 **성능 저하가 아니라 조건 변화**다: 학습 데이터가 절반 이하로 줄고(7,713→3,704), 교집합이 신세대만 남아 **Cd 분산이 0.037 → 0.023으로 좁아졌다**(R²가 구조적으로 불리해짐). AutoGluon은 오히려 소폭 상승했고, 이제 두 모델이 같은 조건이므로 **격차 +0.28이 진짜 값**이다.
 
-## 7. 지표 정의
+## 8. 지표 정의
 
 | 지표 | 정의 | 성격 |
 |---|---|---|
@@ -79,11 +117,14 @@ PointNet이 0.968 → 0.853으로 내려간 것은 **성능 저하가 아니라 
 | **MSE / RMSE** | mean((ŷ−y)²) / √MSE | 큰 오차에 더 큰 벌점 |
 | **MAE(counts)** | MAE × 1000 | 도메인 단위(1 count = 0.001 Cd), 차종 간 비교 가능 |
 | **순위 정확도** | 무작위 두 설계 중 저항 낮은 쪽 적중률 | 제품이 실제 주장하는 기능. 50% = 동전던지기 |
-| MAPE | mean(\|ŷ−y\|/y)×100 | 백분율 오차. **다음 실행부터 산출**(protocol.py에 추가됨) |
+| MAPE | mean(\|ŷ−y\|/y)×100 | 백분율 오차. **1024점 DL 실행(§6)부터 산출** |
 
-## 8. 재현
+## 9. 재현
 
 ```bash
 python scripts/protocol.py                    # 분할 검증
 python scripts/run_protocol_comparison.py     # 전체 재실행 (automl env)
+python scripts/run_protocol_comparison.py --only dl --npoints 1024 \
+    --backbones pointnet triplane dgcnn regdgcnn \
+    --out outputs/protocol_dl1024.json        # §6 DL 백본 비교
 ```

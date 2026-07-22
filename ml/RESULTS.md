@@ -5,6 +5,8 @@
 
 ---
 
+> ⚠️ **이 문서는 공식 split(7,713대) 기준이다.** 리뷰 피드백을 반영한 새 프로토콜(교집합 3,704대 · K=5 rotating) 결과는 **[PROTOCOL_RESULTS.md](PROTOCOL_RESULTS.md)**에 있으며, 데이터 범위가 달라 **두 문서의 수치를 직접 비교하면 안 된다**.
+
 ## 1. 지금 쓰는 지표
 
 `eval_metrics.py`가 다섯 개를 찍는다. 셋은 서로 다른 질문에 답하고, 둘은 보조다.
@@ -111,32 +113,9 @@ PointNet은 +0.839**다. 베낄 게 없는 곳에서 PointNet만 맞힌다.
 
 ---
 
-## 6b. 100k 전체 점군 학습 — 샘플링을 안 하면 더 나은가? (2026-07-18)
+## 6b. 크로스모달(CLIP식) 점 개수 ablation — 4096도 이득 없음 (2026-07-21)
 
-> ⚠ 중복 주의: 아래 §8이 같은 실험을 더 상세히 다룬다. 하나로 합칠 것.
-
-"FPS-2048로 다운샘플하는 게 손해 아니냐"는 물음을 직접 실험했다. 100k 원본 점군을 **다운샘플 없이** 그대로 넣어 4개 백본을 동일 레시피(AdamW 1e-3, SmoothL1, cosine, 120ep, patience 30, meter 유지)로 학습했다. **OOM 백본은 배치를 32→1로 절반씩만 낮췄고**(AMP·gradient checkpointing·accumulation 등 우회 기법은 실험 조건을 바꾸므로 **의도적으로 미사용**), bs=1에서도 OOM이면 "불가"로 기록했다. 스크립트 [scripts/train_100k.py](scripts/train_100k.py), 로그 `outputs/n100k.log`. RTX 5080 16.6GB.
-
-| 백본 | 100k 입력 가능?/bs | 100k All R² | 100k MAE(counts) | FPS 기준선 | 결론 |
-|---|---|---:|---:|---|---|
-| **PointNet** (0.81M) | ✅ **bs=4** (8/16/32 OOM) | **+0.911** | 8.7 | **+0.968** @2048 (5.1) | **FPS가 더 낫다 (−0.057)** |
-| **Triplane** (0.92M) | ✅ bs=32 | +0.716 | 16.8 | +0.738 @1024 | 사실상 동률 (−0.022) |
-| **DGCNN** (1.80M) | ❌ **bs=1도 OOM** | — | — | +0.950 @1024 | **100k 입력 불가** |
-| **RegDGCNN** (3.16M) | ❌ **bs=1도 OOM** | — | — | +0.894 @1024 | **100k 입력 불가** |
-
-PointNet 100k의 차종별: Fastback +0.926 / Estate **+0.541** / Notchback **+0.476** (FPS-2048은 0.974 / 0.839 / 0.802). 순위 정확도 91.6%, MAE 8.7 counts (FPS-2048은 94.6%, 5.1 counts).
-
-**핵심 발견 — 점을 더 넣는 게 오히려 손해였다.** PointNet은 100k에서 **모든 지표가 FPS-2048보다 나빠졌고**(R² 0.968→0.911, MAE 5.1→8.7 counts, Estate 0.839→0.541), 이유는 성능이 아니라 **메모리 제약**이다: 100k는 활성 텐서가 커서 16GB에서 **batch size 4**밖에 안 됐고(FPS-2048은 bs 32), 이 열악한 배치 통계가 특히 소수 클래스(Estate/Notchback)를 무너뜨렸다. val 곡선도 bs4에서 val R²가 0.5~0.7 사이를 크게 진동하며 best 0.698에 머물렀다.
-
-**그래프 계열(DGCNN/RegDGCNN)은 100k 입력이 원천 불가.** k-NN graph feature가 `(batch, N, k, dims)` 텐서를 요구해 bs=1에서도 **1,192 GiB** 할당을 시도하다 즉시 OOM. 다운샘플 없이는 이 아키텍처를 100k에 못 쓴다.
-
-**함의:** (1) FPS-2048은 타협이 아니라 **이 하드웨어에서 최적점**이다 — 실루엣을 보존하면서 정상 배치 학습을 가능케 한다. (2) 단, 이 결론은 **16GB 제약과 얽혀** 있다. A100 40/80GB에서 100k PointNet을 bs 32~64로 재실행하면 배치 통계 교란 없이 "점 개수 자체의 효과"를 분리 측정할 수 있다 — [A100_BOOTSTRAP.md](A100_BOOTSTRAP.md) §6의 최우선 실험. (3) "포화" 주장의 정확한 표현은 여전히 *"1,024↔2,048에서 성능 포화"*이며, 100k와의 비교는 배치 교란이 제거된 A100 재실행으로 확정한다.
-
----
-
-## 6c. 크로스모달(CLIP식) 점 개수 ablation — 4096도 이득 없음 (2026-07-21)
-
-"6b에서 100k는 배치 제약으로 왜곡됐으니, 크로스모달에서 FPS 점 개수를 1024/2048/4096로 올리면 나아지나?"를 측정. 같은 FPS-4096 캐시에서 nested로 슬라이스(`data/fps4096.npz`, 앞 2048점 = 기존 fps2048과 동일). test 559 페어. 스크립트 [scripts/precompute_fps_k.py](scripts/precompute_fps_k.py) + [scripts/run_crossmodal_npoints.sh](scripts/run_crossmodal_npoints.sh).
+"§8에서 100k는 배치 제약으로 왜곡됐으니, 크로스모달에서 FPS 점 개수를 1024/2048/4096로 올리면 나아지나?"를 측정. 같은 FPS-4096 캐시에서 nested로 슬라이스(`data/fps4096.npz`, 앞 2048점 = 기존 fps2048과 동일). test 559 페어. 스크립트 [scripts/precompute_fps_k.py](scripts/precompute_fps_k.py) + [scripts/run_crossmodal_npoints.sh](scripts/run_crossmodal_npoints.sh).
 
 | npoints | 검색 top-1 | 검색 top-5 | 역추정 R² | Cd 선형프로브 R² |
 |---:|---:|---:|---:|---:|
@@ -156,7 +135,7 @@ PointNet 100k의 차종별: Fastback +0.926 / Estate **+0.541** / Notchback **+0
 3. **시드 분산**. PointNet(0.968) vs DGCNN(0.951) 차이가 시드 노이즈보다 큰지 미확인.
 4. **DGCNN 정식 레시피** (SGD, lr 0.1, 250 epoch). 지금은 PointNet 설정을 그대로 줬다.
 5. **불확실성 캘리브레이션 / OOD 플래그**. → R5
-6. **100k PointNet @ 큰 배치 (A100).** 위 6b는 16GB의 bs4 제약과 얽혀 있다. A100에서 bs 32~64로 재실행해 점 개수 효과를 배치 교란과 분리. → [A100_BOOTSTRAP.md](A100_BOOTSTRAP.md) §6
+6. **100k PointNet @ 큰 배치 (A100).** 위 §8은 16GB의 bs4 제약과 얽혀 있다. A100에서 bs 32~64로 재실행해 점 개수 효과를 배치 교란과 분리. → [A100_BOOTSTRAP.md](A100_BOOTSTRAP.md) §6
 
 ---
 
@@ -197,6 +176,8 @@ FPS-2048 대비 (PointNet):
 
 Triplane이 점 수에 둔감한 이유: 고정 해상도 점유 격자에 래스터라이즈하므로 100k점을 넣어도
 격자가 포화될 뿐 표현이 더 풍부해지지 않는다 (1024점 0.738 vs 100k 0.716, bs 차이 감안 시 동급).
+
+**후속**: 배치 교란을 제거한 순수 점 개수 효과는 A100에서 bs 32~64로 재실행해야 분리된다 → [A100_BOOTSTRAP.md](A100_BOOTSTRAP.md) §6, [A100_DL_HANDOFF.md](A100_DL_HANDOFF.md).
 
 ---
 
@@ -261,6 +242,24 @@ max pool 직전 점별 특징 `(C,N)`에 이미지 Grad-CAM을 이식(회귀라 
 
 **한계**: 가린 입력은 학습 분포 밖(OOD)이라 ΔCd에 "중요도"와 "OOD 정도"가 섞인다. 다만 무작위
 대조군이 8.8로 낮아 OOD 효과만으로는 230.6을 설명할 수 없다. 절대값보다 **구역 간·모델 간 상대 비교**로 읽을 것.
+
+---
+
+## 10. 공정 프로토콜 DL 백본 비교 — 1024점 (2026-07-22)
+
+동일 데이터(3,704대 = 포인트클라우드 ∩ 파라미터 CSV 교집합 − 데모 5)·동일 K=5 rotating fold에서 포인트클라우드 백본 4종을 **1024점**으로 맞대어 비교. 프로토콜 [scripts/protocol.py](scripts/protocol.py), 실행 `run_protocol_comparison.py --only dl --npoints 1024 --backbones pointnet triplane dgcnn regdgcnn`, 원본 `outputs/protocol_dl1024.json`. ML(파라미터 23개) 대비 및 상세 표는 [PROTOCOL_COMPARISON.md](PROTOCOL_COMPARISON.md) §6.
+
+| 백본 | 파라미터 | 전체 R² | Fastback | Estate | Notchback | MAE(counts) | 순위acc |
+|---|---|---:|---:|---:|---:|---:|---:|
+| **PointNet** | 0.81 M | **+0.848 ± 0.014** | +0.778 | **+0.780** | **+0.777** | **7.01** | **87.8%** |
+| DGCNN | 1.80 M | +0.818 ± 0.008 | +0.750 | +0.727 | +0.724 | 7.77 | 86.3% |
+| RegDGCNN | — | +0.779 ± 0.015 | +0.705 | +0.658 | +0.671 | 8.64 | 86.4% |
+| Triplane | — | +0.339 ± 0.094 | +0.152 | **−0.160** | +0.134 | 14.96 | 73.6% |
+
+1. **순위 PointNet > DGCNN > RegDGCNN ≫ Triplane.** 전역 max-pool(PointNet)이 국소 EdgeConv 집계(DGCNN·RegDGCNN)보다 낫다 — §9-3·모델링 원칙의 "Cd는 전역 실루엣이 지배"와 일치.
+2. **1024 ≈ 2048 재확인.** PointNet 1024점 +0.848(±0.014)은 2048점 공정런 +0.853(±0.031)과 사실상 동일(편차는 오히려 절반). 폰 예산으로 충분.
+3. **PointNet만 차종 균일**(0.777~0.780). DGCNN·RegDGCNN은 Estate·Notchback에서 더 떨어지고, **Triplane은 Estate에서 붕괴**(−0.160, 평균 예측만도 못함) — 고정 해상도 점유 격자가 신세대(분산 좁음) 형상차를 못 담는 §8과 동일 메커니즘.
+4. RegDGCNN은 5세트에 ~6.9시간(세트당 최대 ~7,500초)으로 가장 느린데 성능은 DGCNN보다 낮다 — 이 데이터에선 비용 대비 이득 없음.
 
 ---
 

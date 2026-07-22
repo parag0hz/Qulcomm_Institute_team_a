@@ -1,0 +1,106 @@
+# 새 평가 프로토콜 결과 (2026-07-22)
+
+리뷰 피드백을 전면 반영한 평가 체계의 **최종 결과 문서**. 기존 [RESULTS.md](RESULTS.md)는 공식 split(7,713대) 기준이라 **이 문서와 수치를 직접 비교하면 안 된다**.
+
+## 1. 프로토콜
+
+| 항목 | 내용 | 반영한 피드백 |
+|---|---|---|
+| 데이터 | **3,704대** — 파라미터 CSV ∩ 포인트클라우드 교집합(3,709) − 데모 홀드아웃(5) | #1 ML/DL 동일 데이터 |
+| 분할 | **K=5 rotating** — 학습 3 fold / 검증 1 / 테스트 1, 차종 층화 | #2 k-fold |
+| 집계 | 5세트 각각 테스트 1회 → **평균 ± 표준편차** | #2 |
+| 지표 | R² · MAE · MSE · RMSE · MAE(counts) · MAPE · 순위정확도, 전체+차종별 | #4 지표 |
+| HPO | Optuna TPE, **탐색은 val만 / test는 최종 1회** | #4 최적화 과정 |
+| 데모 | 5대 영구 제외 (시연 전용) | #6 |
+
+```
+세트1  train 1,2,3 | val 4 | test 5      세트4  train 4,5,1 | val 2 | test 3
+세트2  train 2,3,4 | val 5 | test 1      세트5  train 5,1,2 | val 3 | test 4
+세트3  train 3,4,5 | val 1 | test 2
+```
+
+> ⚠ **기존 수치와 직접 비교 금지.** 교집합만 남기니 신세대 차량만 남아 **Cd 분산이 0.037 → 0.023으로 좁아졌다**(데이터도 7,713 → 3,704). R²가 구조적으로 낮게 나온다.
+
+## 2. 딥러닝 백본 (포인트클라우드 1024점)
+
+| 백본 | R² | MAE | MSE | MAPE | 순위acc |
+|---|---:|---:|---:|---:|---:|
+| **PointNet** | **+0.8483 ± 0.0141** | 0.00701 | 7.93e-05 | 2.74% | 87.8% |
+| DGCNN | +0.8177 ± 0.0077 | 0.00777 | 9.55e-05 | 3.05% | 86.3% |
+| RegDGCNN | +0.7792 ± 0.0152 | 0.00864 | 1.16e-04 | 3.40% | 86.4% |
+| Triplane | +0.3394 ± 0.0935 | 0.01496 | 3.46e-04 | 5.78% | 73.6% |
+
+**순위가 기존 프로토콜과 완전히 일치한다** (공식 split: 0.968 > 0.950 > 0.894 > 0.738). 데이터를 절반으로 줄이고 k-fold로 바꿔도 **PointNet > DGCNN > RegDGCNN > Triplane** 순서가 유지된다 — 리뷰어의 "데이터가 달라 비교 불가" 지적을 해소하고도 결론이 바뀌지 않았다.
+
+### 차종별 R²
+
+| 백본 | 전체 | Fastback | Estate | Notchback |
+|---|---:|---:|---:|---:|
+| **PointNet** | +0.848 | **+0.778** | **+0.780** | **+0.777** |
+| DGCNN | +0.818 | +0.750 | +0.727 | +0.724 |
+| RegDGCNN | +0.779 | +0.705 | +0.658 | +0.671 |
+| Triplane | +0.339 | +0.152 | -0.160 | +0.134 |
+
+### 차종별 MAE (drag counts)
+
+| 백본 | 전체 | Fastback | Estate | Notchback |
+|---|---:|---:|---:|---:|
+| PointNet | 7.01 | 7.03 | 7.01 | 6.99 |
+| DGCNN | 7.77 | 7.62 | 7.75 | 7.97 |
+| RegDGCNN | 8.64 | 8.44 | 8.73 | 8.74 |
+| Triplane | 14.96 | 14.08 | 16.30 | 14.31 |
+
+**PointNet만 차종 편향이 사실상 없다** — R² 0.778/0.780/0.777, MAE 7.03/7.01/6.99 counts로 세 차종이 거의 동일. Triplane은 Estate에서 **R² -0.160(음수)**로 무너진다.
+
+## 3. 머신러닝 (설계 파라미터 23개, 2048점 DL과 동일 fold)
+
+| 모델 | R² | MAE | MSE | 튜닝 후 R² |
+|---|---:|---:|---:|---:|
+| AutoGluon | +0.5729 ± 0.0267 | 0.01166 | 2.24e-04 | — |
+| LightGBM | +0.5574 ± 0.0326 | 0.01175 | 2.32e-04 | **+0.5633** |
+| GradientBoosting | +0.5539 ± 0.0180 | 0.01238 | 2.34e-04 | — |
+| XGBoost | +0.5161 ± 0.0277 | 0.01195 | 2.53e-04 | **+0.5611** |
+| RandomForest | +0.4858 ± 0.0248 | 0.01278 | 2.69e-04 | — |
+
+**튜닝해도 0.56대에서 수렴** — XGBoost는 기본값이 나빠 +0.045 올랐지만 LightGBM(+0.006)과 같은 지점에 도달했다. **설계 파라미터 23개로 설명 가능한 Cd의 상한이 R² ≈ 0.57**이라는 뜻이다.
+
+![모델별 전체 비교](outputs/protocol_cmp_overall.png)
+![차종별](outputs/protocol_cmp_bodytype.png)
+
+## 4. ML vs DL — 핵심 비교
+
+| | 입력 | R² | MAE(counts) |
+|---|---|---:|---:|
+| **PointNet** (2048점) | 포인트클라우드 | **+0.853** | 6.9 |
+| PointNet 튜닝 | 〃 | **+0.865** | 6.5 |
+| AutoGluon | 설계 파라미터 | +0.573 | 11.7 |
+
+**동일 데이터·동일 fold에서 격차 +0.28**. 튜닝 후에도 +0.865 vs 0.563으로 **+0.30** 유지 — 하이퍼파라미터로 설명되지 않는 **모달리티 우위**다.
+
+## 5. 정직하게 짚을 점
+
+1. **PointNet vs DGCNN 격차(+0.031)는 '압도적'이 아니다.** 표준편차(0.008~0.014)보다는 크지만, 다른 torch 버전에서 PointNet이 0.831로 나온 적이 있어 **런 간 변동 ±0.02**를 감안하면 *일관된 소폭 우세*가 정확한 표현이다.
+2. **RegDGCNN은 불리하게 평가됐을 수 있다.** fold별 종료 epoch이 제각각이었다 (세트1 ep51 조기종료 → R² 0.750으로 최저 / 세트2 ep116 완주 → 0.779). cosine 스케줄이 120 epoch 기준이라 중간에 끊기면 LR 감쇠가 미완이다. PointNet·DGCNN은 대부분 ep107~119까지 갔다. **조기종료 없는 재실행이 필요하며, A100 2048점 실행 시 함께 해결한다.**
+3. **Triplane 표준편차가 ±0.094로 크다** — 5-fold 값이 0.16~0.44로 흔들린다. 경량 모델이라 학습 데이터가 절반으로 준 영향을 크게 받았다.
+4. 이 결과는 **1024점 기준**이다. 2048점은 RegDGCNN이 16GB에서 OOM이라 돌리지 못했다 → A100 담당.
+
+## 6. 재현
+
+```bash
+python scripts/protocol.py                                  # 분할·지표 검증
+python scripts/run_protocol_comparison.py --only ml         # ML 5-fold
+python scripts/run_protocol_comparison.py --only dl --npoints 1024 \
+    --backbones pointnet dgcnn regdgcnn triplane            # DL 5-fold
+python scripts/tune_optuna.py --models xgb lgbm pointnet    # HPO
+```
+
+## 7. 관련 문서
+
+| 문서 | 내용 |
+|---|---|
+| [PROTOCOL_COMPARISON.md](PROTOCOL_COMPARISON.md) | ML vs DL 2048점 비교 상세 (이 문서 §3~4의 원본) |
+| [RESULTS.md](RESULTS.md) | 기존 공식 split 결과 + 모델 해석(§9 가림 실험) — **수치 직접 비교 금지** |
+| [METRICS.md](METRICS.md) | 지표 정의 |
+| [A100_DL_HANDOFF.md](A100_DL_HANDOFF.md) | 2048·4096점은 A100 담당 |
+
+원본: `outputs/protocol_dl1024.json` · `outputs/protocol_comparison.json` · `outputs/optuna_results.json`

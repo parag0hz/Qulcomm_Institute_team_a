@@ -71,8 +71,8 @@ def occlude(p, m, rng):
     return p[rng.choice(keep, len(p), replace=True)]
 
 
-def load_net(bb):
-    f = f"{OUT}/backbone_{bb}_2048.pt"
+def load_net(bb, npoints=1024):
+    f = f"{OUT}/backbone_{bb}_{npoints}.pt"
     if not os.path.exists(f):
         return None, None
     ck = torch.load(f, weights_only=False)
@@ -99,14 +99,14 @@ def main(a):
 
     res, avail = {}, []
     for bb in a.backbones:
-        net, ck = load_net(bb)
+        net, ck = load_net(bb, a.npoints)
         if net is None:
             print(f"⚠ {bb}: 가중치 없음 — 건너뜀"); continue
         avail.append(bb)
         per_zone = {z[0]: [] for z in ZONES}; per_zone["무작위(대조)"] = []
         for it in demo:
             i = int(np.where(keys == it["id"])[0][0])
-            p = d["pts"][i, :2048].astype(np.float32)
+            p = d["pts"][i, :a.npoints].astype(np.float32)
             base = predict(net, ck, p)
             for lab, ax_, lo, hi in ZONES:
                 m = zone_mask(p, ax_, lo, hi)
@@ -148,7 +148,7 @@ def main(a):
                            gridspec_kw={"width_ratios": [1, 1.5]})
     # (좌) 구역 도식
     i = int(np.where(keys == demo[0]["id"])[0][0])
-    p = d["pts"][i, :2048]
+    p = d["pts"][i, :a.npoints]
     cols = plt.get_cmap("viridis")(np.linspace(0.15, 0.9, 5))
     for k, (lab, ax_, lo, hi) in enumerate(ZONES[:5]):
         m = zone_mask(p, ax_, lo, hi)
@@ -178,6 +178,7 @@ def main(a):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--backbones", nargs="+", default=["pointnet", "triplane", "dgcnn", "regdgcnn"])
+    p.add_argument("--backbones", nargs="+", default=["pointnet", "dgcnn", "regdgcnn"])
+    p.add_argument("--npoints", type=int, default=1024)
     p.add_argument("--n", type=int, default=5)
     main(p.parse_args())
