@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 /**
  * Renders exactly what the model receives: 2,048 raw points.
@@ -11,6 +12,8 @@ import * as THREE from "three";
 interface PointCloudViewerProps {
   points: number[][] | null;
   busy?: boolean;
+  /** 있으면 이 메시를 먼저 띄웠다가 점군으로 흩어지는 인트로를 재생한다. */
+  meshUrl?: string;
   /** 밀도 애니메이션을 멈추고 이 개수로 고정한다(추론 결과를 볼 때). */
   freezeAt?: number | null;
   onDensityChange?: (count: number) => void;
@@ -18,12 +21,15 @@ interface PointCloudViewerProps {
 
 const FOV = 34;
 const MIN_POINTS = 96;
+// 차체가 점으로 녹아내리는 시간. 짧으면 못 보고 길면 기다리게 된다.
+const DISSOLVE_MS = 1900;
 // 한 번 차오르고 빠지는 데 걸리는 시간. 너무 빠르면 산만하고 느리면 지루하다.
 const CYCLE_MS = 7200;
 
 export function PointCloudViewer({
   points,
   busy = false,
+  meshUrl,
   freezeAt = null,
   onDensityChange,
 }: PointCloudViewerProps) {
@@ -39,6 +45,12 @@ export function PointCloudViewer({
   const lastNotifiedRef = useRef(0);
   // 고정 지점으로 뚝 끊지 않고 흘러들어가게 한다.
   const countRef = useRef(0);
+  const meshRef = useRef<THREE.Group | null>(null);
+  const meshMatsRef = useRef<THREE.MeshStandardMaterial[]>([]);
+  // 인트로가 끝나기 전에는 밀도 호흡을 시작하지 않는다.
+  const dissolveStartRef = useRef<number | null>(null);
+  const introDoneRef = useRef(false);
+  const introEndRef = useRef<number | null>(null);
 
   freezeRef.current = freezeAt;
   notifyRef.current = onDensityChange;
@@ -65,6 +77,46 @@ export function PointCloudViewer({
     const grid = new THREE.GridHelper(14, 28, 0x2b3a44, 0x1a242b);
     grid.rotation.x = Math.PI / 2;
     scene.add(grid);
+
+    // 메시를 보여줄 때만 필요한 조명. 점군은 조명을 받지 않는다.
+    scene.add(new THREE.HemisphereLight(0xdfeaf2, 0x0b1216, 1.15));
+    const key = new THREE.DirectionalLight(0xffffff, 1.5);
+    key.position.set(4, 6, 8);
+    scene.add(key);
+
+    let disposed = false;
+    if (meshUrl) {
+      new GLTFLoader()
+        .loadAsync(meshUrl)
+        .then((gltf) => {
+          if (disposed) return;
+          const group = gltf.scene;
+          const mats: THREE.MeshStandardMaterial[] = [];
+          group.traverse((node) => {
+            const mesh = node as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            const material = new THREE.MeshStandardMaterial({
+              color: 0x9fb4c2,
+              roughness: 0.42,
+              metalness: 0.05,
+              transparent: true,
+              opacity: 1,
+            });
+            mesh.material = material;
+            mats.push(material);
+          });
+          meshMatsRef.current = mats;
+          meshRef.current = group;
+          scene.add(group);
+          dissolveStartRef.current = performance.now();
+        })
+        .catch(() => {
+          // 메시를 못 받아도 데모는 점군만으로 성립한다.
+          introDoneRef.current = true;
+        });
+    } else {
+      introDoneRef.current = true;
+    }
 
     let frame = 0;
     let dragging = false;
@@ -110,9 +162,33 @@ export function PointCloudViewer({
 
       // 점을 매 프레임 다시 만들지 않는다. 지오메트리는 그대로 두고 그리는
       // 개수만 바꾼다 — FPS 순서라 앞에서 n개가 곧 FPS-n 샘플이다.
+      // 인트로: 차체가 옅어지는 만큼 점이 차오른다. 두 동작이 같은 진행률을
+      // 공유해야 '녹아내린다'로 읽히고, 따로 놀면 그냥 겹쳐 보인다.
       const cloud = cloudRef.current;
       const total = totalRef.current;
-      if (cloud && total > 0) {
+      const dissolveStart = dissolveStartRef.current;
+      if (dissolveStart !== null && !introDoneRef.current) {
+        const raw = Math.min(1, (performance.now() - dissolveStart) / DISSOLVE_MS);
+        const progress = raw * raw * (3 - 2 * raw);
+        meshMatsRef.current.forEach((material) => {
+          material.opacity = 1 - progress;
+        });
+        if (meshRef.current) meshRef.current.visible = progress < 1;
+        if (cloud) {
+          (cloud.material as THREE.PointsMaterial).opacity = 0.92 * progress;
+          if (total > 0) {
+            countRef.current = MIN_POINTS + (total - MIN_POINTS) * progress;
+            cloud.geometry.setDrawRange(0, Math.max(1, Math.round(countRef.current)));
+          }
+        }
+        if (raw >= 1) {
+          introDoneRef.current = true;
+          // 호흡이 지금 밀도에서 자연스럽게 이어지도록 위상을 맞춘다.
+          introEndRef.current = performance.now();
+        }
+      }
+
+      if (cloud && total > 0 && introDoneRef.current) {
         if (freezeRef.current) {
           // 결과가 나오면 모델이 실제로 읽은 개수로 수렴시킨다. 순간이동시키면
           // 화면이 갑자기 성겨져 고장처럼 보이므로 흘러들어가게 둔다.
@@ -121,7 +197,9 @@ export function PointCloudViewer({
           if (Math.abs(target - countRef.current) < 2) countRef.current = target;
         } else {
           // 삼각파를 부드럽게 다듬어 차오르고 빠지는 호흡을 만든다.
-          const phase = ((performance.now() - started) % CYCLE_MS) / CYCLE_MS;
+          // 인트로가 끝난 지점(밀도 최대)에서 이어받도록 반주기 오프셋을 준다.
+          const base = introEndRef.current ?? started;
+          const phase = (((performance.now() - base) + CYCLE_MS / 2) % CYCLE_MS) / CYCLE_MS;
           const triangle = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
           const eased = triangle * triangle * (3 - 2 * triangle);
           countRef.current = MIN_POINTS + (total - MIN_POINTS) * eased;
@@ -160,8 +238,15 @@ export function PointCloudViewer({
     tick();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
+      meshRef.current?.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh) mesh.geometry.dispose();
+      });
+      meshMatsRef.current.forEach((material) => material.dispose());
+      meshMatsRef.current = [];
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointermove", onMove);
       renderer.domElement.removeEventListener("pointerup", onUp);
@@ -208,8 +293,9 @@ export function PointCloudViewer({
         cx: center.x,
         cy: center.y,
         cz: center.z * 0.8,
-        // 3/4 각도에서 가로로 필요한 폭은 길이와 폭 사이 어딘가다.
-        spanXY: Math.hypot(size.x, size.y) * 0.82,
+        // 카메라가 계속 도므로 어느 각도에서든 가로로 들어와야 한다.
+        // 최악은 대각선이 화면 가로와 나란해지는 순간이다.
+        spanXY: Math.hypot(size.x, size.y),
         spanZ: size.z,
       };
     }
@@ -219,7 +305,8 @@ export function PointCloudViewer({
       color: 0xdbe7ef,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.92,
+      // 인트로가 남아 있으면 보이지 않게 시작해 메시가 옅어지며 드러난다.
+      opacity: introDoneRef.current ? 0.92 : 0,
     });
 
     const cloud = new THREE.Points(geometry, material);

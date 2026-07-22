@@ -94,6 +94,7 @@ function LiveDemo() {
       <div className="stage-viewer">
         <PointCloudViewer
           points={points}
+          meshUrl="/static/models/drivaer_reference.glb"
           busy={loadingCloud || inferring}
           freezeAt={result ? result.n_points : null}
           onDensityChange={setDensity}
