@@ -16,6 +16,7 @@ from typing import Dict, List, Sequence, Tuple
 import json
 import os
 import threading
+import time
 
 import numpy as np
 
@@ -56,6 +57,17 @@ def demo_clouds_path() -> Path | None:
         Path(override) if override else None,
         APP_ROOT / "models" / "demo_clouds.npz",
         REPO_ROOT.parent / "ml" / "models" / "demo_clouds.npz",
+    )
+
+
+def view_clouds_path() -> Path | None:
+    """FPS 순서를 보존한 조밀 점군(있으면). 없으면 학습용 2048점으로 대체한다."""
+
+    override = os.environ.get("PARAGON_DEMO_VIEW_CLOUDS")
+    return _first_existing(
+        Path(override) if override else None,
+        APP_ROOT / "models" / "demo_clouds_view.npz",
+        REPO_ROOT.parent / "ml" / "models" / "demo_clouds_view.npz",
     )
 
 
@@ -170,6 +182,20 @@ def load_demo_clouds() -> Tuple[np.ndarray, List[Dict[str, object]]] | None:
     return clouds, meta
 
 
+def load_view_clouds() -> Tuple[np.ndarray, List[Dict[str, object]]] | None:
+    path = view_clouds_path()
+    if path is None:
+        return None
+    with np.load(path, allow_pickle=False) as bundle:
+        return np.asarray(bundle["pts"], dtype=np.float32), json.loads(str(bundle["meta"]))
+
+
+def _clouds_for_demo() -> Tuple[np.ndarray, List[Dict[str, object]]] | None:
+    """조밀 점군이 있으면 그쪽을, 없으면 학습용 2048점을 쓴다."""
+
+    return load_view_clouds() or load_demo_clouds()
+
+
 def demo_predictions() -> Dict[str, object]:
     """학습에서 영구 제외된 홀드아웃 차량에 대해 라이브 추론을 돌린다.
 
@@ -219,6 +245,87 @@ def demo_predictions() -> Dict[str, object]:
             "Predictions run live on every request."
         ),
     }
+
+
+def demo_cars() -> List[Dict[str, object]]:
+    """데모 차량 목록. 점군은 빼고 메타데이터만 — 목록은 가벼워야 한다."""
+
+    bundle = _clouds_for_demo()
+    if bundle is None:
+        return []
+    clouds, meta = bundle
+    return [
+        {
+            "id": entry.get("id"),
+            "body_type": entry.get("body_type"),
+            "true_cd": round(float(entry["true_cd"]), 5) if entry.get("true_cd") is not None else None,
+            "point_count": int(clouds.shape[1]),
+        }
+        for entry in meta
+    ]
+
+
+def demo_cloud(design_id: str) -> Dict[str, object] | None:
+    """한 대의 점군 좌표. 브라우저에서 3D로 그리기 위한 것."""
+
+    bundle = _clouds_for_demo()
+    if bundle is None:
+        return None
+    clouds, meta = bundle
+    for index, entry in enumerate(meta):
+        if entry.get("id") == design_id:
+            # float32에 그대로 round를 걸면 float64로 올라갈 때 잔여 소수가
+            # 되살아나 JSON이 3배 부풀어 오른다(2.2973 → 2.297300100326538).
+            # 먼저 float64로 올린 뒤 밀리미터(3자리)로 끊는다 — 표시엔 충분하다.
+            points = np.round(clouds[index].astype(np.float64), 3).tolist()
+            return {
+                "id": design_id,
+                "body_type": entry.get("body_type"),
+                "true_cd": round(float(entry["true_cd"]), 5) if entry.get("true_cd") is not None else None,
+                "points": points,
+            }
+    return None
+
+
+def infer_one(design_id: str, n_points: int | None = None) -> Dict[str, object] | None:
+    """한 대에 대해 추론을 돌린다.
+
+    FPS 순서가 보존돼 있으므로 앞에서 n_points개를 자르면 그 크기의 FPS 샘플이
+    된다. 점 개수를 바꿔가며 정확도가 어떻게 달라지는지 보여주기 위한 인자다.
+    학습 조건은 EXPECTED_POINTS(2048)이며 그 외 값은 실험으로 표시된다.
+    """
+
+    bundle = _clouds_for_demo()
+    if bundle is None or not runner().available:
+        return None
+    clouds, meta = bundle
+    for index, entry in enumerate(meta):
+        if entry.get("id") != design_id:
+            continue
+        # 기본값은 반드시 학습 조건이다. 표시용 조밀 점군(16k)이 들어오면
+        # 그대로 넣고 싶은 유혹이 있지만, 이 모델은 2048점으로 학습돼 점이
+        # 많아지면 오히려 오차가 커진다(실측 4.96 → 24.09 counts).
+        # 정확도 주장은 학습 조건에서 나와야 하므로 명시하지 않으면 2048이다.
+        target = EXPECTED_POINTS if n_points is None else max(1, int(n_points))
+        cloud = clouds[index][: min(target, len(clouds[index]))]
+        started = time.perf_counter()
+        value = float(runner().predict(cloud[None])[0])
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        guarded = _guard(value, len(cloud))
+        true_cd = entry.get("true_cd")
+        payload: Dict[str, object] = {
+            "id": design_id,
+            "body_type": entry.get("body_type"),
+            "n_points": int(len(cloud)),
+            "trained_points": EXPECTED_POINTS,
+            "true_cd": round(float(true_cd), 5) if true_cd is not None else None,
+            "inference_ms": round(elapsed_ms, 2),
+            **guarded.public_dict(),
+        }
+        if true_cd is not None:
+            payload["error_counts"] = round(abs(value - float(true_cd)) * 1000.0, 2)
+        return payload
+    return None
 
 
 def pointnet_status() -> Dict[str, object]:
