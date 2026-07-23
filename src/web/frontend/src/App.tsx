@@ -126,6 +126,7 @@ function cloudDisplayPrediction(
         cd_p25: 0.24,
         cd_p75: 0.3,
         feature_count: 3,
+        feature_columns: [],
       },
   };
 }
