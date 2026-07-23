@@ -253,6 +253,7 @@ export interface CloudPredictionResponse {
   n_points_input: number;
   n_points_model: number;
   trained_points: number;
+  preview_points: number[][];
   file: { name: string; size_bytes: number };
 }
 
