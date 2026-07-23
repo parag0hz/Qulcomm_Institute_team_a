@@ -162,13 +162,13 @@ export function DesignControls(props: DesignControlsProps) {
       ) : (
         <section className="mode-panel">
           <label className="dropzone">
-            <input type="file" accept=".stl,model/stl" disabled={props.stlBusy} onChange={handleFile} />
-            <span className="dropzone-mark">STL</span>
-            <strong>{props.stlBusy ? "Analyzing mesh…" : "Choose your vehicle mesh"}</strong>
-            <small>ASCII or binary · up to 32 MB</small>
+            <input type="file" accept=".stl,model/stl,.paddle_tensor" disabled={props.stlBusy} onChange={handleFile} />
+            <span className="dropzone-mark">3D</span>
+            <strong>{props.stlBusy ? "Reading upload…" : "Choose an STL mesh or .paddle_tensor cloud"}</strong>
+            <small>.paddle_tensor → PointNet · STL → geometry fallback · up to 32 MB</small>
           </label>
           {props.stlSummary && <div className="stl-summary">{props.stlSummary}</div>}
-          <div className="mode-note"><strong>Different prediction path</strong><p>STL analysis currently uses geometric proportions and is lower confidence than the trained parametric model.</p></div>
+          <div className="mode-note"><strong>Two prediction paths</strong><p>A .paddle_tensor point cloud runs the trained PointNet surrogate directly. An STL mesh uses a lower-confidence geometric-proportion fallback.</p></div>
         </section>
       )}
     </aside>

@@ -16,6 +16,8 @@ import {
 import type {
   AnalysisResponse,
   CarRear,
+  CloudPredictionResponse,
+  DatasetSummary,
   DesignParameters,
   NumericParameterName,
   ParameterSchema,
@@ -90,6 +92,61 @@ function stlDisplayPrediction(result: StlPredictionResponse): PredictionResponse
   };
 }
 
+// 업로드한 .paddle_tensor를 PointNet(학습된 형상 모델)이 예측한 결과를 스튜디오의
+// 공통 결과 표시에 맞춰 변환한다. STL 휴리스틱과 달리 이건 실제 대체모델이므로
+// 라벨을 "trained surrogate"로 둔다. 백분위는 데이터셋 범위로 근사한다.
+function cloudDisplayPrediction(
+  result: CloudPredictionResponse,
+  dataset?: DatasetSummary,
+): PredictionResponse {
+  const cd = result.cd ?? result.raw_cd;
+  const lo = dataset?.cd_min ?? 0.2;
+  const hi = dataset?.cd_max ?? 0.36;
+  const percentile = Math.max(0, Math.min(100, ((cd - lo) / (hi - lo || 1)) * 100));
+  const level: PredictionResponse["level"] =
+    cd < (dataset?.cd_p25 ?? 0.24) ? "low" : cd > (dataset?.cd_p75 ?? 0.3) ? "high" : "medium";
+  return {
+    cd,
+    percentile,
+    level,
+    comparison: "PointNet estimated this coefficient directly from the uploaded point cloud.",
+    provider: "PointNet (point cloud)",
+    domain_status: result.trusted ? "inside" : "outside",
+    nearest_sample_distance: Number.NaN,
+    uncertainty: null,
+    warnings: result.warnings,
+    model: { name: "PointNet", status: "connected", confidence: "high" },
+    dataset:
+      dataset ?? {
+        sample_count: 0,
+        cd_min: 0.2,
+        cd_max: 0.36,
+        cd_mean: 0.256,
+        cd_median: 0.252,
+        cd_p25: 0.24,
+        cd_p75: 0.3,
+        feature_count: 3,
+      },
+  };
+}
+
+// VehicleViewer는 정규화된 STL preview([-1,1])에 맞춰 카메라·점 크기가 고정돼 있고
+// 위치만 geometry.center()로 맞춘다(스케일 보정 없음). 미터 스케일 원본 점군을 그대로
+// 주면 2배 이상 커 보이므로, STL의 normalize_preview_points와 동일하게 정규화한다.
+function normalizePreviewPoints(points: number[][]): number[][] {
+  if (!points.length) return points;
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (const [x, y, z] of points) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  }
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
+  const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 1e-9);
+  return points.map(([x, y, z]) => [((x - cx) / span) * 2, ((y - cy) / span) * 2, ((z - cz) / span) * 2]);
+}
+
 export default function App() {
   useEffect(() => {
     document.body.classList.add("paragon-studio");
@@ -111,6 +168,7 @@ export default function App() {
   const [predictionBusy, setPredictionBusy] = useState(false);
   const [stlBusy, setStlBusy] = useState(false);
   const [stlResult, setStlResult] = useState<StlPredictionResponse | null>(null);
+  const [cloudResult, setCloudResult] = useState<CloudPredictionResponse | null>(null);
   const [startupError, setStartupError] = useState("");
   const [requestError, setRequestError] = useState("");
   const [toast, setToast] = useState("");
@@ -243,7 +301,11 @@ export default function App() {
   const currentPrediction = predictionFingerprint === currentFingerprint ? prediction : null;
   const currentAnalysis = analysisFingerprint === currentFingerprint ? analysis : null;
   const displayPrediction = mode === "stl"
-    ? (stlResult ? stlDisplayPrediction(stlResult) : null)
+    ? (cloudResult
+        ? cloudDisplayPrediction(cloudResult, status?.dataset)
+        : stlResult
+          ? stlDisplayPrediction(stlResult)
+          : null)
     : currentPrediction;
   const displayAnalysis = mode === "parameters" ? currentAnalysis : null;
   const resultBusy = mode === "stl"
@@ -323,14 +385,23 @@ export default function App() {
   };
 
   const handleStlUpload = async (file: File) => {
+    const isCloud = file.name.toLowerCase().endsWith(".paddle_tensor");
     setStlBusy(true);
     setRequestError("");
     try {
-      const result = await api.uploadStl(file);
-      setStlResult(result);
-      setToast(`Analyzed ${result.file.name}`);
+      if (isCloud) {
+        const result = await api.uploadCloud(file);
+        setCloudResult(result);
+        setStlResult(null);
+        setToast(`Read ${result.file.name}`);
+      } else {
+        const result = await api.uploadStl(file);
+        setStlResult(result);
+        setCloudResult(null);
+        setToast(`Analyzed ${result.file.name}`);
+      }
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : "STL analysis failed.");
+      setRequestError(error instanceof Error ? error.message : "Upload failed.");
     } finally {
       setStlBusy(false);
     }
@@ -425,7 +496,9 @@ export default function App() {
   const lengthDelta = current.A_Car_Length - (schema.parameters.find((item) => item.name === "A_Car_Length")?.default ?? current.A_Car_Length);
   const widthDelta = current.A_Car_Width - (schema.parameters.find((item) => item.name === "A_Car_Width")?.default ?? current.A_Car_Width);
   const heightDelta = current.A_Car_Roof_Height - (schema.parameters.find((item) => item.name === "A_Car_Roof_Height")?.default ?? current.A_Car_Roof_Height);
-  const importedPoints = mode === "stl" ? stlResult?.preview_points : undefined;
+  const importedPoints = mode === "stl"
+    ? (cloudResult ? normalizePreviewPoints(cloudResult.preview_points) : stlResult?.preview_points)
+    : undefined;
 
   return (
     <>
@@ -447,6 +520,7 @@ export default function App() {
           if (baseDefaults) setCurrentDesign(baseDefaults);
           setMode("parameters");
           setStlResult(null);
+          setCloudResult(null);
           viewerRef.current?.showReference();
           viewerRef.current?.resetView();
           setToast("Current design reset");
@@ -461,7 +535,7 @@ export default function App() {
           locked={locks}
           mode={mode}
           stlBusy={stlBusy}
-          stlSummary={stlResult ? `${stlResult.file.name} · ${Number(stlResult.mesh.triangle_count ?? 0).toLocaleString()} triangles · geometry fallback Cd ${stlResult.cd.toFixed(4)}` : undefined}
+          stlSummary={cloudResult ? `${cloudResult.file.name} · PointNet · ${cloudResult.cd !== null ? `Cd ${cloudResult.cd.toFixed(4)}` : "out of distribution"}` : stlResult ? `${stlResult.file.name} · ${Number(stlResult.mesh.triangle_count ?? 0).toLocaleString()} triangles · geometry fallback Cd ${stlResult.cd.toFixed(4)}` : undefined}
           onModeChange={(nextMode) => {
             if (nextMode === "parameters") viewerRef.current?.showReference();
             setMode(nextMode);
@@ -483,7 +557,7 @@ export default function App() {
             </div>
             <div className="viewport-meta">
               <button className={`dimension-toggle ${dimensionsVisible && mode === "parameters" ? "active" : ""}`} type="button" aria-pressed={dimensionsVisible && mode === "parameters"} disabled={mode === "stl"} onClick={() => setDimensionsVisible((visible) => !visible)}>Dimensions</button>
-              <span>{mode === "stl" && stlResult ? "Imported STL preview" : "Reference DrivAer geometry"}</span>
+              <span>{mode === "stl" && cloudResult ? "Imported point cloud" : mode === "stl" && stlResult ? "Imported STL preview" : "Reference DrivAer geometry"}</span>
               <span className="live-dot" />Live
             </div>
           </div>
@@ -502,13 +576,14 @@ export default function App() {
               </Suspense>
             </ViewerErrorBoundary>
             <div className="canvas-overlay top-left">
-              <span>{mode === "stl" && stlResult ? stlResult.file.name.toUpperCase() : `DRIVAER FASTBACK · ${current.Wheels.toUpperCase()}`}</span>
+              <span>{mode === "stl" && cloudResult ? cloudResult.file.name.toUpperCase() : mode === "stl" && stlResult ? stlResult.file.name.toUpperCase() : `DRIVAER FASTBACK · ${current.Wheels.toUpperCase()}`}</span>
               <small>Drag to rotate · scroll to zoom</small>
               {mode === "parameters" && current.CarRear !== "Fastback" && <small className="architecture-warning">{current.CarRear} affects Cd only; this viewport keeps the Fastback reference body.</small>}
+              {mode === "stl" && cloudResult && <small className="architecture-warning">PointNet prediction from your uploaded point cloud (2,048 sampled points).</small>}
               {mode === "stl" && stlResult && <small className="architecture-warning">Imported point preview · geometry fallback, not a trained CFD surrogate.</small>}
             </div>
             <div className="axis-widget" aria-hidden="true"><span className="axis-x">X</span><span className="axis-y">Y</span><span className="axis-z">Z</span></div>
-            {(predictionBusy || stlBusy) && <div className="loading-overlay"><span />{stlBusy ? "Analyzing STL" : "Updating prediction"}</div>}
+            {(predictionBusy || stlBusy) && <div className="loading-overlay"><span />{stlBusy ? "Analyzing upload" : "Updating prediction"}</div>}
           </div>
           {mode === "parameters" ? <div className="design-strip">
             <div><span>Length study</span><strong>Δ {signed(lengthDelta)} mm</strong></div>
@@ -516,6 +591,11 @@ export default function App() {
             <div><span>Roof study</span><strong>Δ {signed(heightDelta)} mm</strong></div>
             <div><span>Diffuser</span><strong>{current.B_Diffusor_Angle.toFixed(2)}°</strong></div>
             <div className="concept-disclaimer"><span>Geometry status</span><strong>{current.Wheels === "Open detailed" ? "QEM body · dataset wheels" : `QEM body · ${current.Wheels} procedural wheels`}</strong></div>
+          </div> : cloudResult ? <div className="design-strip stl-design-strip">
+            <div><span>File</span><strong>{cloudResult.file.name}</strong></div>
+            <div><span>Points read</span><strong>{cloudResult.n_points_model.toLocaleString()} / {cloudResult.n_points_input.toLocaleString()}</strong></div>
+            <div><span>Estimate</span><strong>{cloudResult.cd !== null ? `Cd ${cloudResult.cd.toFixed(4)}` : "Out of distribution"}</strong></div>
+            <div className="concept-disclaimer"><span>Model</span><strong>PointNet · trained surrogate</strong></div>
           </div> : <div className="design-strip stl-design-strip">
             <div><span>File</span><strong>{stlResult?.file.name ?? "Choose an STL"}</strong></div>
             <div><span>Triangles</span><strong>{Number(stlResult?.mesh.triangle_count ?? 0).toLocaleString()}</strong></div>
@@ -546,7 +626,7 @@ export default function App() {
           onPreview={(recommendation) => { commitDraft(); previewRecommendation(recommendation); }}
           onApply={(recommendation: Recommendation) => { applyRecommendation(recommendation); setToast("Recommendation applied"); }}
           onCancelPreview={cancelRecommendation}
-          onLoadVariant={(id) => { clearHistoryCommit(); setMode("parameters"); setStlResult(null); loadVariant(id); }}
+          onLoadVariant={(id) => { clearHistoryCommit(); setMode("parameters"); setStlResult(null); setCloudResult(null); loadVariant(id); }}
           onDeleteVariant={deleteVariant}
           onClearWorkspace={() => {
             clearHistoryCommit();
@@ -554,6 +634,7 @@ export default function App() {
             setDraftDesign(null);
             setMode("parameters");
             setStlResult(null);
+            setCloudResult(null);
             clearWorkspace(baseDefaults ?? undefined);
             setToast("Workspace cleared");
           }}
