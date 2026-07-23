@@ -341,3 +341,12 @@
 .demo-upload .upload-name { margin-top: 8px; color: #6f8a92; word-break: break-all; }
 .demo-upload .stage-result { margin-top: 12px; text-align: left; }
 .demo-upload .stage-error { margin-top: 10px; }
+.demo-upload .upload-viewer {
+  position: relative;
+  min-height: 300px;
+  margin-top: 14px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, #16242b 0%, #0a1114 72%);
+  border: 1px solid #1e2c33;
+}

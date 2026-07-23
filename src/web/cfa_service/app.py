@@ -43,7 +43,7 @@ from .pointnet import (
 )
 from .schemas import CopilotRequest, DesignParameters, OptimizeRequest, VertexTestRequest
 from .stl import parse_stl_bytes
-from .paddle_cloud import cloud_from_paddle_bytes
+from .paddle_cloud import cloud_from_paddle_bytes, to_preview
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -350,6 +350,7 @@ async def predict_paddle_cloud(file: UploadFile = File(...)) -> dict[str, Any]:
     try:
         sampled, n_input = await run_in_threadpool(cloud_from_paddle_bytes, payload)
         prediction = await run_in_threadpool(predict_cloud, sampled)
+        preview = await run_in_threadpool(to_preview, sampled)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -360,6 +361,7 @@ async def predict_paddle_cloud(file: UploadFile = File(...)) -> dict[str, Any]:
         "n_points_input": n_input,
         "n_points_model": int(len(sampled)),
         "trained_points": 2048,
+        "preview_points": preview,
         "file": {"name": file_name, "size_bytes": len(payload)},
     }
 

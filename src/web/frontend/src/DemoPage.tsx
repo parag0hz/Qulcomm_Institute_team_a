@@ -244,6 +244,11 @@ function UploadCloud() {
       </label>
       {fileName && !error && <p className="stage-muted upload-name">{fileName}</p>}
       {error && <div className="stage-error">{error}</div>}
+      {result && result.preview_points.length > 0 && (
+        <div className="upload-viewer">
+          <PointCloudViewer points={result.preview_points} />
+        </div>
+      )}
       {result && (
         <div className="stage-result">
           <div className="result-row">

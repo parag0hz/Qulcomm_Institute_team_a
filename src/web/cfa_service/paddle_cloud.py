@@ -93,3 +93,12 @@ def cloud_from_paddle_bytes(data: bytes, k: int = MODEL_POINTS) -> tuple[np.ndar
     cloud = parse_paddle_tensor(data)
     n_input = int(len(cloud))
     return farthest_point_sample(cloud, k), n_input
+
+
+def to_preview(points: np.ndarray) -> list:
+    """Rounded coordinate list for the browser 3D viewer (same format as demo_cloud).
+
+    Round to millimetres (3 dp) so the JSON stays small; the viewer auto-fits the
+    camera to the extents, so raw metre-scale coordinates go straight in.
+    """
+    return np.round(np.asarray(points, dtype=np.float64), 3).tolist()
