@@ -1,0 +1,10 @@
+{
+ "tag": "regdgcnn_n100000_dims0_meter",
+ "params": 3164257,
+ "oom": true,
+ "oom_log": [
+  "bs=2: CUDA out of memory. Tried to allocate 74.51 GiB. GPU 0 has a total capacity of 79.15 GiB of which 750.56 MiB is free. Process 2473310 has 1.38 GiB memory in use. Process 3825505 has 2.00 GiB memory in use. Including non-PyTorch memory, this process has 75.02 GiB memory in use. Of the allocated memory 74.53 GiB is allocated by PyTorch, and 5.54 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)",
+  "bs=1: CUDA out of memory. Tried to allocate 37.25 GiB. GPU 0 has a total capacity of 79.15 GiB of which 750.56 MiB is free. Process 2473310 has 1.38 GiB memory in use. Process 3825505 has 2.00 GiB memory in use. Including non-PyTorch memory, this process has 75.02 GiB memory in use. Of the allocated memory 74.53 GiB is allocated by PyTorch, and 6.30 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
+ ],
+ "note": "bs=1에서도 OOM — 이 백본은 100k 입력으로 학습 불가 (우회 기법 미사용)"
+}

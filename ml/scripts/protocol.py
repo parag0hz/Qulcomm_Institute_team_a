@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import csv as _csv
 import json
+import os
 import sys
 
 import numpy as np
@@ -27,9 +28,10 @@ import numpy as np
 sys.path.insert(0, "/home/kwy00/qi")
 import cd_common as C
 
-CSV = "/home/kwy00/qi/data/DrivAerNet_ParametricData.csv"
-FPS = "/home/kwy00/qi/data/fps2048.npz"
-DEMO = "/home/kwy00/qi/data/demo_holdout.json"
+_DATA = os.environ.get("QI_DATA", "/home/kwy00/qi/data")
+CSV = os.path.join(_DATA, "DrivAerNet_ParametricData.csv")
+FPS = os.path.join(_DATA, "fps2048.npz")
+DEMO = os.path.join(_DATA, "demo_holdout.json")
 AERO_COLS = {"Average Cd", "Std Cd", "Average Cl", "Std Cl",
              "Average Cl_f", "Std Cl_f", "Average Cl_r", "Std Cl_r"}
 K = 5

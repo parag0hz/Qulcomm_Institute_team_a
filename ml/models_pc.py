@@ -198,8 +198,8 @@ class RegDGCNNWrap(nn.Module):
     def __init__(self, n_dims: int = 0, **_):
         super().__init__()
         assert n_dims == 0, "regdgcnn 래퍼는 --dims 0만 지원"
-        import sys as _sys
-        p = "/home/kwy00/qi/external/DrivAerNet/DeepSurrogates"
+        import sys as _sys, os as _os
+        p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "external/DrivAerNet/DeepSurrogates")
         if p not in _sys.path:
             _sys.path.insert(0, p)
         from DeepSurrogate_models import RegDGCNN

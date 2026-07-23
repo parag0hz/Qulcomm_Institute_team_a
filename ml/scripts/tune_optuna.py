@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import warnings
@@ -24,7 +25,8 @@ sys.path.insert(0, "/home/kwy00/qi")
 sys.path.insert(0, "/home/kwy00/qi/scripts")
 from protocol import load_dataset, make_folds, split_indices, evaluate, aggregate
 
-OUT_JSON = "/home/kwy00/qi/outputs/optuna_results.json"
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT_JSON = os.path.join(_REPO, "outputs", "optuna_results.json")
 
 
 def r2(yh, y):
@@ -223,7 +225,7 @@ def plot_study(st, name):
     ax[1].spines[["top", "right"]].set_visible(False)
 
     plt.tight_layout()
-    p = f"/home/kwy00/qi/outputs/optuna_{name}.png"
+    p = os.path.join(_REPO, "outputs", f"optuna_{name}.png")
     plt.savefig(p, dpi=150, bbox_inches="tight"); plt.close()
     print(f"    그림 저장: {p}")
 

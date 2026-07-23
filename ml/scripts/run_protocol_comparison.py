@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 
@@ -23,7 +24,8 @@ sys.path.insert(0, "/home/kwy00/qi")
 sys.path.insert(0, "/home/kwy00/qi/scripts")
 from protocol import load_dataset, make_folds, split_indices, evaluate, aggregate, CLASSES
 
-OUT = "/home/kwy00/qi/outputs/protocol_comparison.json"
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(_REPO, "outputs", "protocol_comparison.json")
 
 
 # ============================== ML ==============================
@@ -79,7 +81,7 @@ def run_ml(ds, sets, use_autogluon=True):
 BS_DEFAULT = {"pointnet": 32, "dgcnn": 16, "regdgcnn": 8, "triplane": 32, "mlp": 32}
 
 
-def run_dl(ds, sets, backbone="pointnet", epochs=120, bs=None, lr=1e-3, patience=30):
+def run_dl(ds, sets, backbone="pointnet", epochs=120, bs=None, lr=1e-3, patience=200):
     import torch
     import torch.nn as nn
     from torch.utils.data import DataLoader, TensorDataset
@@ -154,8 +156,8 @@ if __name__ == "__main__":
     ap.add_argument("--out", default=OUT)
     a = ap.parse_args()
 
-    cache = a.cache or ("/home/kwy00/qi/data/fps4096.npz" if a.npoints > 2048
-                        else "/home/kwy00/qi/data/fps2048.npz")
+    cache = a.cache or os.path.join(os.environ.get("QI_DATA", "/home/kwy00/qi/data"),
+                                    "fps4096.npz" if a.npoints > 2048 else "fps2048.npz")
     ds = load_dataset(npoints=a.npoints, cache=cache)
     if ds["pts"].shape[1] < a.npoints:      # 조용한 절단 방지
         raise SystemExit(f"캐시 점수 부족: {cache}는 {ds['pts'].shape[1]}점뿐인데 "

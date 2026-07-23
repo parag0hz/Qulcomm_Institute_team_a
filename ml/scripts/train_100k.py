@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 
@@ -24,8 +25,11 @@ sys.path.insert(0, "/home/kwy00/qi")
 from models_pc import BACKBONES
 
 N_PTS = 100_000
-CACHE = "/home/kwy00/qi/data/pc100k_f32.dat"
-META = "/home/kwy00/qi/data/pc100k_meta.json"
+_DATA = os.environ.get("QI_DATA", "/home/kwy00/qi/data")
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FPS2048 = os.path.join(_DATA, "fps2048.npz")
+CACHE = os.path.join(_DATA, "pc100k_f32.dat")
+META = os.path.join(_DATA, "pc100k_meta.json")
 CLASSES = ["Fastback", "Estate", "Notchback"]
 
 
@@ -47,7 +51,7 @@ def build_cache():
     C.check_integrity()
     files = C.file_index()
     keys = sorted(files)
-    d = np.load("/home/kwy00/qi/data/fps2048.npz", allow_pickle=True)
+    d = np.load(_FPS2048, allow_pickle=True)
     assert len(keys) == len(d["keys"]), "fps2048.npz와 파일 수 불일치"
     assert all(f"{p}_{i}" == str(k) for (p, i), k in zip(keys, d["keys"])), "키 순서 불일치"
 
@@ -81,7 +85,7 @@ class PC100k(Dataset):
     def __init__(self, idx, yz):
         self.idx, self.yz = idx, yz.astype(np.float32)
         self.mm = np.memmap(CACHE, dtype=np.float32, mode="r", shape=(len(np.load(
-            "/home/kwy00/qi/data/fps2048.npz", allow_pickle=True)["keys"]), N_PTS, 3))
+            _FPS2048, allow_pickle=True)["keys"]), N_PTS, 3))
 
     def __len__(self):
         return len(self.idx)
@@ -95,7 +99,7 @@ class PC100k(Dataset):
 
 def main(a):
     torch.manual_seed(a.seed); np.random.seed(a.seed)
-    d = np.load("/home/kwy00/qi/data/fps2048.npz", allow_pickle=True)
+    d = np.load(_FPS2048, allow_pickle=True)
     cd, split, cls, keys = d["cd"], d["split"], d["cls"], d["keys"]
     tr, va, te = (split == "train"), (split == "val"), (split == "test")
     center = torch.tensor(json.load(open(META))["center_train"], dtype=torch.float32).cuda()
@@ -132,7 +136,7 @@ def main(a):
             if bs == 1:
                 res = {"tag": tag, "params": nparam, "oom": True, "oom_log": oom_msgs,
                        "note": "bs=1에서도 OOM — 이 백본은 100k 입력으로 학습 불가 (우회 기법 미사용)"}
-                with open(f"/home/kwy00/qi/outputs/{tag}.json", "w") as f:
+                with open(os.path.join(_REPO, "outputs", f"{tag}.json"), "w") as f:
                     json.dump(res, f, indent=1, ensure_ascii=False)
                 print(f"  -> 불가 보고: outputs/{tag}.json", flush=True)
                 return
@@ -195,7 +199,7 @@ def main(a):
         res = {"tag": tag, "params": nparam, "oom": True, "bs": bs,
                "oom_log": oom_msgs + [f"학습 중 OOM: {str(e).split(chr(10))[0]}"],
                "note": "프로브는 통과했으나 학습 중 OOM — 불가로 기록"}
-        with open(f"/home/kwy00/qi/outputs/{tag}.json", "w") as f:
+        with open(os.path.join(_REPO, "outputs", f"{tag}.json"), "w") as f:
             json.dump(res, f, indent=1, ensure_ascii=False)
         print(f"  -> 학습 중 OOM, 불가 보고: outputs/{tag}.json", flush=True)
         if run:
@@ -214,9 +218,9 @@ def main(a):
     for c in ["All"] + CLASSES:
         rr, m = res["test"][c]
         print(f"  {c:<12}{rr:>+10.3f}{m:>9.2f}")
-    with open(f"/home/kwy00/qi/outputs/{tag}.json", "w") as f:
+    with open(os.path.join(_REPO, "outputs", f"{tag}.json"), "w") as f:
         json.dump(res, f, indent=1, ensure_ascii=False)
-    np.savez(f"/home/kwy00/qi/outputs/{tag}_pred.npz", yh=yh, y=y, keys=keys[te], cls=cls[te])
+    np.savez(os.path.join(_REPO, "outputs", f"{tag}_pred.npz"), yh=yh, y=y, keys=keys[te], cls=cls[te])
     print(f"\n  -> outputs/{tag}.json   ({time.time()-t0:.0f}s)")
     if run:
         run.summary.update({"val_r2_best": best, "bs_effective": bs}
