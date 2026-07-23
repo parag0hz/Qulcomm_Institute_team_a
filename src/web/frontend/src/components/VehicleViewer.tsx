@@ -729,7 +729,13 @@ function setImportedPointCloud(runtime: ViewerRuntime, points: readonly (readonl
   });
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.center();
+  // 참조 모델(위)과 동일하게: x·y는 중앙, z(높이)는 바닥을 지면(0)에 맞춘다.
+  // geometry.center()로 원점 중앙에 두면 차체가 절반 높이만큼 지면 아래로 내려간다.
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  if (box) {
+    geometry.translate(-(box.min.x + box.max.x) / 2, -(box.min.y + box.max.y) / 2, -box.min.z);
+  }
   const material = new THREE.PointsMaterial({ color: 0x66d4c2, size: 0.025, sizeAttenuation: true });
   runtime.importedCloud = new THREE.Points(geometry, material);
   runtime.scene.add(runtime.importedCloud);
