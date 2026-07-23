@@ -23,9 +23,9 @@ except ImportError as error:  # pragma: no cover - exercised by CLI users
     ) from error
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = REPO_ROOT / "stl/3DMeshesSTL/F_D_WM_WW_8/F_D_WM_WW_3532.stl"
-DEFAULT_OUTPUT = REPO_ROOT / "web/cfa_service/static/models/drivaer_reference.glb"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_INPUT = BACKEND_ROOT / "stl/3DMeshesSTL/F_D_WM_WW_8/F_D_WM_WW_3532.stl"
+DEFAULT_OUTPUT = BACKEND_ROOT / "cfa_service/static/models/drivaer_reference.glb"
 
 
 @dataclass

@@ -21,9 +21,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATA = REPO_ROOT / "ParametricModels" / "DrivAerNet_ParametricData.csv"
-DEFAULT_OUTPUT = REPO_ROOT / "web" / "artifacts" / "cfa_parametric_baseline.pkl"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_DATA = BACKEND_ROOT / "ParametricModels" / "DrivAerNet_ParametricData.csv"
+DEFAULT_OUTPUT = BACKEND_ROOT / "artifacts" / "cfa_parametric_baseline.pkl"
 TARGET_COLUMN = "Average Cd"
 NON_FEATURE_COLUMNS = {
     "Experiment",

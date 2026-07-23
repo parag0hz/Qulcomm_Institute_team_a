@@ -106,11 +106,13 @@ The smallest model wins: PointNet (0.81 M parameters) beats DGCNN (1.80 M) and R
 
 | Path | Contents |
 |---|---|
-| `src/web/cfa_service/` | FastAPI backend — prediction, sensitivity drivers, constrained optimisation, STL parsing, provider routing |
-| `src/web/frontend/` | React + TypeScript + Zustand studio, Three.js viewer with live geometry morphing |
-| `src/web/models/` | Parametric baseline training, reference mesh preparation |
-| `src/ParametricModels/` | DrivAerNet++ parametric CSV (4,165 designs) |
+| **`frontend/`** | React + TypeScript + Zustand studio, Three.js viewer with live geometry morphing (Vite project) |
+| **`backend/`** | FastAPI web server — prediction, sensitivity drivers, constrained optimisation, STL & point-cloud upload, provider routing |
+| `backend/cfa_service/` | API app, predictor, PointNet serving, providers, schemas |
+| `backend/models/` | Parametric baseline training, reference mesh preparation |
+| `backend/ParametricModels/` | DrivAerNet++ parametric CSV (4,165 designs) |
 | `ml/` | Research pipeline — training, evaluation protocol, experiment reports ([details](ml/README.md)) |
+| `docs/PRD.pdf` | Product Requirements Document |
 | `Dockerfile`, `render.yaml` | Single-service deployment |
 
 ---
@@ -120,15 +122,14 @@ The smallest model wins: PointNet (0.81 M parameters) beats DGCNN (1.80 M) and R
 Requires **Python 3.10–3.12** and **Node 20.19+ or 22.12+** (Node 26 breaks the test suite — it ships a native `localStorage` that shadows jsdom's).
 
 ```bash
-cd src
-
-# Backend
+# Backend — from the repository root
 python -m venv .venv && source .venv/bin/activate   # or: conda create -n paragon python=3.12
-pip install -r web/requirements-web.txt
-python web/models/train_parametric_baseline.py       # trains the surrogate (~5 s)
-python -m uvicorn web.cfa_service.app:app --port 8001 --reload
+pip install -r backend/requirements-web.txt
+python backend/models/train_parametric_baseline.py   # trains the surrogate (~5 s)
+python -m uvicorn backend.cfa_service.app:app --port 8001 --reload
 
-# Frontend (second terminal)
+# Frontend — second terminal
+cd frontend
 npm install
 npm run dev:web                                      # http://127.0.0.1:5173
 ```
@@ -138,8 +139,11 @@ The trained artifact is not committed (~35 MB); the training command above regen
 ### Tests
 
 ```bash
-npm run typecheck && npm run test:web                     # 20 frontend tests
-python -m unittest discover -s web/tests -p 'test_*.py'   # 26 backend tests
+# Frontend
+cd frontend && npm run typecheck && npm run test:web
+
+# Backend — from the repository root
+python -m unittest discover -s backend/tests -p 'test_*.py'
 ```
 
 ---

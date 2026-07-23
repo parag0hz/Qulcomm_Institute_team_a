@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from web.cfa_service import pointnet
-from web.cfa_service.pointnet import (
+from backend.cfa_service import pointnet
+from backend.cfa_service.pointnet import (
     EXPECTED_POINTS,
     PLAUSIBLE_CD_RANGE,
     _guard,

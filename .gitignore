@@ -20,7 +20,7 @@ __pycache__/
 venv/
 
 # 학습 산출물 (빌드 시점에 생성, 약 35MB)
-src/web/artifacts/
+backend/artifacts/
 *.pkl
 
 # Env
