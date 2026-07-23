@@ -5,7 +5,7 @@ import { BodyTypeChart } from "./components/BodyTypeChart";
 import { PointCloudViewer } from "./components/PointCloudViewer";
 import type { DemoCar, DemoInference } from "./types";
 
-const STUDIO_URL = "/";
+const STUDIO_URL = "/studio";
 
 /**
  * 데모의 본체.
@@ -205,7 +205,7 @@ export function DemoPage() {
   return (
     <div className="demo-root">
       <nav className="demo-nav">
-        <a className="brand" href={STUDIO_URL}>
+        <a className="brand" href="/">
           <span className="brand-mark">P</span>
           <span>Paragon</span>
         </a>
