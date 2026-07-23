@@ -245,6 +245,17 @@ export interface StlPredictionResponse {
   mesh: Record<string, unknown>;
 }
 
+export interface CloudPredictionResponse {
+  cd: number | null;
+  raw_cd: number;
+  trusted: boolean;
+  warnings: string[];
+  n_points_input: number;
+  n_points_model: number;
+  trained_points: number;
+  file: { name: string; size_bytes: number };
+}
+
 export interface Variant {
   id: string;
   name: string;

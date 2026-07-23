@@ -33,9 +33,17 @@ from .predictor import (
     provider_status,
     test_vertex_provider,
 )
-from .pointnet import demo_cars, demo_cloud, demo_predictions, infer_one, pointnet_status
+from .pointnet import (
+    demo_cars,
+    demo_cloud,
+    demo_predictions,
+    infer_one,
+    pointnet_status,
+    predict_cloud,
+)
 from .schemas import CopilotRequest, DesignParameters, OptimizeRequest, VertexTestRequest
 from .stl import parse_stl_bytes
+from .paddle_cloud import cloud_from_paddle_bytes
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -313,6 +321,47 @@ async def predict_stl(file: UploadFile = File(...)) -> dict[str, Any]:
             status_code=400,
             detail=_error_payload("invalid_stl", str(exc)),
         ) from exc
+
+
+@app.post("/api/predict/cloud")
+async def predict_paddle_cloud(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Predict Cd from an uploaded ``.paddle_tensor`` point cloud via the PointNet model.
+
+    The file is parsed WITHOUT unpickling (arbitrary-code safe), downsampled to the
+    training point count with farthest-point sampling, then run through the ONNX graph.
+    DrivAerNet clouds are already metre-scale and canonically aligned, so no re-framing
+    is needed — this is the honest held-out path (upload a clip the model never trained on).
+    """
+    file_name = Path(file.filename or "").name
+    if Path(file_name).suffix.lower() != ".paddle_tensor":
+        raise HTTPException(
+            status_code=400,
+            detail=_error_payload(
+                "invalid_file_type",
+                "Only .paddle_tensor point-cloud uploads are supported here.",
+            ),
+        )
+    payload = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(payload) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=_error_payload("payload_too_large", "Upload is too large. Limit is 32 MB."),
+        )
+    try:
+        sampled, n_input = await run_in_threadpool(cloud_from_paddle_bytes, payload)
+        prediction = await run_in_threadpool(predict_cloud, sampled)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=_error_payload("invalid_cloud", str(exc)),
+        ) from exc
+    return {
+        **prediction.public_dict(),
+        "n_points_input": n_input,
+        "n_points_model": int(len(sampled)),
+        "trained_points": 2048,
+        "file": {"name": file_name, "size_bytes": len(payload)},
+    }
 
 
 if MODEL_ASSETS.exists():

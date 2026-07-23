@@ -334,3 +334,10 @@
 }
 
 .foot-lead { color: #eef5f8; font-weight: 600; }
+
+/* ---- 직접 업로드 (.paddle_tensor) — 히어로 하단 ---- */
+.demo-upload { max-width: 460px; margin: 24px auto 0; text-align: center; }
+.demo-upload .demo-eyebrow { margin-bottom: 8px; }
+.demo-upload .upload-name { margin-top: 8px; color: #6f8a92; word-break: break-all; }
+.demo-upload .stage-result { margin-top: 12px; text-align: left; }
+.demo-upload .stage-error { margin-top: 10px; }

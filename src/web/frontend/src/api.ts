@@ -1,6 +1,7 @@
 import type {
   AnalysisResponse,
   ApiErrorPayload,
+  CloudPredictionResponse,
   CopilotRequest,
   CopilotResponse,
   DesignParameters,
@@ -230,6 +231,17 @@ export const api = {
     const form = new FormData();
     form.append("file", file);
     return requestJson<StlPredictionResponse>("/api/predict", {
+      method: "POST",
+      body: form,
+      signal,
+      timeoutMs: LONG_TIMEOUT_MS,
+    });
+  },
+
+  uploadCloud: (file: File, signal?: AbortSignal) => {
+    const form = new FormData();
+    form.append("file", file);
+    return requestJson<CloudPredictionResponse>("/api/predict/cloud", {
       method: "POST",
       body: form,
       signal,

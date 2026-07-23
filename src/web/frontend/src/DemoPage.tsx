@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import "./demo.css";
 import { api } from "./api";
 import { BodyTypeChart } from "./components/BodyTypeChart";
 import { PointCloudViewer } from "./components/PointCloudViewer";
-import type { DemoCar, DemoInference } from "./types";
+import type { CloudPredictionResponse, DemoCar, DemoInference } from "./types";
 
 const STUDIO_URL = "/studio";
 
@@ -201,6 +201,71 @@ function LiveDemo() {
   );
 }
 
+/**
+ * 직접 업로드 경로. 데모 5대 선택과 별개로, 사용자가 자기 .paddle_tensor 점군을
+ * 올리면 서버가 안전 파싱 → FPS 2048 → 같은 PointNet으로 Cd를 돌려준다.
+ * 정답(true_cd)이 없는 임의 파일이라 예측값과 분포 밖 여부만 보여준다.
+ */
+function UploadCloud() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<CloudPredictionResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+
+  const handleFile = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // 같은 파일 다시 올릴 수 있게 초기화
+    if (!file) return;
+    setFileName(file.name);
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await api.uploadCloud(file));
+    } catch (cause) {
+      setError(cause instanceof Error && cause.message ? cause.message : "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  return (
+    <div className="demo-upload">
+      <p className="demo-eyebrow">Or bring your own clip</p>
+      <label className="pill dark block">
+        <input
+          type="file"
+          accept=".paddle_tensor"
+          disabled={busy}
+          onChange={(event) => void handleFile(event)}
+          style={{ display: "none" }}
+        />
+        {busy ? "Reading the shape…" : "Upload a .paddle_tensor point cloud"}
+      </label>
+      {fileName && !error && <p className="stage-muted upload-name">{fileName}</p>}
+      {error && <div className="stage-error">{error}</div>}
+      {result && (
+        <div className="stage-result">
+          <div className="result-row">
+            <span>Predicted Cd</span>
+            <strong>
+              {result.trusted && result.cd !== null ? result.cd.toFixed(4) : "Out of distribution"}
+            </strong>
+          </div>
+          <div className="result-row">
+            <span>Points read</span>
+            <strong className="muted">
+              {result.n_points_model.toLocaleString()}
+              <small> / {result.n_points_input.toLocaleString()}</small>
+            </strong>
+          </div>
+          {result.warnings.length > 0 && <p className="stage-foot">{result.warnings.join(" ")}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DemoPage() {
   return (
     <div className="demo-root">
@@ -224,6 +289,7 @@ export function DemoPage() {
             2,048 points sampled off the body surface, in milliseconds.
           </p>
           <LiveDemo />
+          <UploadCloud />
         </div>
       </header>
 
