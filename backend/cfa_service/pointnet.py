@@ -45,7 +45,7 @@ def onnx_path() -> Path | None:
     return _first_existing(
         Path(override) if override else None,
         APP_ROOT / "models" / "pointnet_serving.onnx",          # 컨테이너 배치 위치
-        REPO_ROOT.parent / "ml" / "models" / "pointnet_serving.onnx",  # 로컬 저장소
+        REPO_ROOT / "ml" / "models" / "pointnet_serving.onnx",  # 로컬 저장소
     )
 
 
@@ -56,7 +56,7 @@ def demo_clouds_path() -> Path | None:
     return _first_existing(
         Path(override) if override else None,
         APP_ROOT / "models" / "demo_clouds.npz",
-        REPO_ROOT.parent / "ml" / "models" / "demo_clouds.npz",
+        REPO_ROOT / "ml" / "models" / "demo_clouds.npz",
     )
 
 
@@ -67,7 +67,7 @@ def view_clouds_path() -> Path | None:
     return _first_existing(
         Path(override) if override else None,
         APP_ROOT / "models" / "demo_clouds_view.npz",
-        REPO_ROOT.parent / "ml" / "models" / "demo_clouds_view.npz",
+        REPO_ROOT / "ml" / "models" / "demo_clouds_view.npz",
     )
 
 

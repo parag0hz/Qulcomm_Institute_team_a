@@ -12,6 +12,38 @@ Paragon replaces that inner loop with a learned surrogate. Upload a 3D model or 
 
 ---
 
+## Team Introduction
+
+**Qualcomm Institute Team A**
+
+| Member | GitHub | Focus |
+|---|---|---|
+| Sumin Cho | [@barcybarcy](https://github.com/barcybarcy) | Web application (frontend + FastAPI backend), Vertex AutoML integration |
+| Dongwon Lim | [@parag0hz](https://github.com/parag0hz) | ML pipeline, PointNet training & serving, demo, deployment |
+| Sangwoo Sim | [@tmrhdwja2-alt](https://github.com/tmrhdwja2-alt) | Application development |
+| Chaewon Jeong | [@chaewon8699-source](https://github.com/chaewon8699-source) | Application development |
+| Minju Chae | [@chaeminju](https://github.com/chaeminju) | Application development |
+
+> _Roles above are drawn from repository history — team members can refine their own descriptions._
+
+## Service Introduction
+
+**Paragon (CFA — Car Fluid Analyzer)** predicts a vehicle's aerodynamic drag coefficient (Cd) the moment you change its shape. CFD — the standard way to measure drag — takes days to weeks per design and needs supercomputer-scale compute, so early-stage designers rarely run it. Paragon replaces that inner loop with a trained surrogate: adjust design parameters or upload a 3D point cloud, and get a Cd estimate in milliseconds, with the uncertainty stated rather than hidden.
+
+**Who it's for** — automotive designers who need fast aerodynamic feedback without CFD expertise, and product teams comparing candidate designs early.
+
+**What you can do**
+
+- **Move design sliders** and watch the 3D vehicle and predicted Cd update live.
+- **Upload a point cloud** (`.paddle_tensor` / `.npy`) and get a prediction from the trained PointNet model — the same model behind the held-out benchmark.
+- **Compare candidates** and see where each ranks against the DrivAerNet++ design population.
+- **Optimize toward a target Cd** and receive concrete design-change directions.
+- **Ask the Copilot** — it explains each result using the model's own numbers, never invented figures.
+
+**▶ Try it live:** <https://qulcomm-institute-team-a.onrender.com/>
+
+---
+
 ## Results
 
 We train on [DrivAerNet++](https://github.com/Mohamedelrefaie/DrivAerNet) (Elrefaie et al., NeurIPS 2024) — 7,713 sedan variants, 100k points each, with CFD-computed Cd labels.
@@ -74,11 +106,13 @@ The smallest model wins: PointNet (0.81 M parameters) beats DGCNN (1.80 M) and R
 
 | Path | Contents |
 |---|---|
-| `src/web/cfa_service/` | FastAPI backend — prediction, sensitivity drivers, constrained optimisation, STL parsing, provider routing |
-| `src/web/frontend/` | React + TypeScript + Zustand studio, Three.js viewer with live geometry morphing |
-| `src/web/models/` | Parametric baseline training, reference mesh preparation |
-| `src/ParametricModels/` | DrivAerNet++ parametric CSV (4,165 designs) |
+| **`frontend/`** | React + TypeScript + Zustand studio, Three.js viewer with live geometry morphing (Vite project) |
+| **`backend/`** | FastAPI web server — prediction, sensitivity drivers, constrained optimisation, STL & point-cloud upload, provider routing |
+| `backend/cfa_service/` | API app, predictor, PointNet serving, providers, schemas |
+| `backend/models/` | Parametric baseline training, reference mesh preparation |
+| `backend/ParametricModels/` | DrivAerNet++ parametric CSV (4,165 designs) |
 | `ml/` | Research pipeline — training, evaluation protocol, experiment reports ([details](ml/README.md)) |
+| `docs/PRD.pdf` | Product Requirements Document |
 | `Dockerfile`, `render.yaml` | Single-service deployment |
 
 ---
@@ -88,15 +122,14 @@ The smallest model wins: PointNet (0.81 M parameters) beats DGCNN (1.80 M) and R
 Requires **Python 3.10–3.12** and **Node 20.19+ or 22.12+** (Node 26 breaks the test suite — it ships a native `localStorage` that shadows jsdom's).
 
 ```bash
-cd src
-
-# Backend
+# Backend — from the repository root
 python -m venv .venv && source .venv/bin/activate   # or: conda create -n paragon python=3.12
-pip install -r web/requirements-web.txt
-python web/models/train_parametric_baseline.py       # trains the surrogate (~5 s)
-python -m uvicorn web.cfa_service.app:app --port 8001 --reload
+pip install -r backend/requirements-web.txt
+python backend/models/train_parametric_baseline.py   # trains the surrogate (~5 s)
+python -m uvicorn backend.cfa_service.app:app --port 8001 --reload
 
-# Frontend (second terminal)
+# Frontend — second terminal
+cd frontend
 npm install
 npm run dev:web                                      # http://127.0.0.1:5173
 ```
@@ -106,8 +139,11 @@ The trained artifact is not committed (~35 MB); the training command above regen
 ### Tests
 
 ```bash
-npm run typecheck && npm run test:web                     # 20 frontend tests
-python -m unittest discover -s web/tests -p 'test_*.py'   # 26 backend tests
+# Frontend
+cd frontend && npm run typecheck && npm run test:web
+
+# Backend — from the repository root
+python -m unittest discover -s backend/tests -p 'test_*.py'
 ```
 
 ---
@@ -133,8 +169,9 @@ On Render, `render.yaml` provisions it as a Blueprint. The frontend bundle is bu
 
 ---
 
-## Team
+## Documents
 
-Qualcomm Institute Team A
+- **[Product Requirements Document (PDF)](docs/PRD.pdf)** — problem, users, feature requirements, scope, and risks.
+- **[ML research pipeline](ml/README.md)** — training, evaluation protocol, and full experiment reports.
 
 Dataset: DrivAerNet++, Elrefaie et al., *NeurIPS 2024 Datasets & Benchmarks*.

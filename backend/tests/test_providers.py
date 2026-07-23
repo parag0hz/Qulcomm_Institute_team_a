@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from web.cfa_service.providers import ProviderResult, ProviderRouter, VertexProvider
+from backend.cfa_service.providers import ProviderResult, ProviderRouter, VertexProvider
 
 
 class FakeLocalProvider:
@@ -58,7 +58,7 @@ class ProviderRouterTest(unittest.TestCase):
         vertex = FakeVertexProvider(error=RuntimeError("endpoint timed out"))
         router = self.make_router(vertex)
 
-        with patch("web.cfa_service.providers.time.monotonic", side_effect=[10.0, 10.0, 11.0]):
+        with patch("backend.cfa_service.providers.time.monotonic", side_effect=[10.0, 10.0, 11.0]):
             first = router.predict([{"A_Car_Length": 20.0}])
             second = router.predict([{"A_Car_Length": 20.0}])
 
@@ -92,7 +92,7 @@ class VertexProviderTest(unittest.TestCase):
 
         with (
             patch.object(provider, "_access_token", return_value="test-token"),
-            patch("web.cfa_service.providers.httpx.post", return_value=response) as post,
+            patch("backend.cfa_service.providers.httpx.post", return_value=response) as post,
         ):
             result = provider.predict(
                 [{"A_Car_Length": "21.5", "CarRear": "Fastback"}],
@@ -120,7 +120,7 @@ class VertexProviderTest(unittest.TestCase):
 
         with (
             patch.object(provider, "_access_token", return_value="test-token"),
-            patch("web.cfa_service.providers.httpx.post", return_value=response),
+            patch("backend.cfa_service.providers.httpx.post", return_value=response),
         ):
             result = provider.predict(
                 [
@@ -138,7 +138,7 @@ class VertexProviderTest(unittest.TestCase):
         with (
             patch.object(provider, "_access_token", return_value="test-token"),
             patch(
-                "web.cfa_service.providers.httpx.post",
+                "backend.cfa_service.providers.httpx.post",
                 side_effect=TimeoutError("timed out"),
             ),
         ):
@@ -155,7 +155,7 @@ class VertexProviderTest(unittest.TestCase):
 
         with (
             patch.object(provider, "_access_token", return_value="test-token"),
-            patch("web.cfa_service.providers.httpx.post", return_value=response),
+            patch("backend.cfa_service.providers.httpx.post", return_value=response),
         ):
             with self.assertRaisesRegex(RuntimeError, "Required feature A_Car_Length"):
                 provider.predict([{"A_Car_Length": 21.5}], ["A_Car_Length"])
@@ -176,7 +176,7 @@ class VertexProviderTest(unittest.TestCase):
                 response = self.response_mock(payload)
                 with (
                     patch.object(provider, "_access_token", return_value="test-token"),
-                    patch("web.cfa_service.providers.httpx.post", return_value=response),
+                    patch("backend.cfa_service.providers.httpx.post", return_value=response),
                 ):
                     with self.assertRaisesRegex(RuntimeError, "response schema"):
                         provider.predict([{"A_Car_Length": 21.5}], ["A_Car_Length"])
