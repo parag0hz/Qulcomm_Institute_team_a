@@ -14,15 +14,15 @@ Paragon replaces that inner loop with a learned surrogate. Upload a 3D model or 
 
 ## Team Introduction
 
-**Chosun University — Qualcomm Institute Team A**
+**Qualcomm Institute Team A**
 
 | Member | GitHub | Focus |
 |---|---|---|
+| Sumin Cho | [@barcybarcy](https://github.com/barcybarcy) | Web application (frontend + FastAPI backend), Vertex AutoML integration |
 | Dongwon Lim | [@parag0hz](https://github.com/parag0hz) | ML pipeline, PointNet training & serving, demo, deployment |
-| Soomin | [@barcybarcy](https://github.com/barcybarcy) | Web application (frontend + FastAPI backend), Vertex AutoML integration |
-| Sangwoo | [@tmrhdwja2-alt](https://github.com/tmrhdwja2-alt) | Application development |
+| Sangwoo Sim | [@tmrhdwja2-alt](https://github.com/tmrhdwja2-alt) | Application development |
 | Chaewon Jeong | [@chaewon8699-source](https://github.com/chaewon8699-source) | Application development |
-| Minju | [@chaeminju](https://github.com/chaeminju) | Application development |
+| Minju Chae | [@chaeminju](https://github.com/chaeminju) | Application development |
 
 > _Roles above are drawn from repository history — team members can refine their own descriptions._
 
