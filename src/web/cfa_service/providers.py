@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
+import math
 import os
 from pathlib import Path
 import pickle
 import subprocess
 import time
 from typing import Mapping, Sequence
-from urllib import request
+
+import httpx
 
 
 @dataclass
@@ -18,6 +19,34 @@ class ProviderResult:
     values: list[float]
     provider: str
     warnings: list[str]
+
+
+def _regression_prediction_value(item: object) -> float:
+    """Extract one finite regression value from Vertex's JSON prediction shape."""
+    for _ in range(8):
+        if isinstance(item, list):
+            if len(item) != 1:
+                raise ValueError("Prediction list must contain exactly one value.")
+            item = item[0]
+            continue
+        if isinstance(item, Mapping):
+            if "value" in item:
+                item = item["value"]
+            elif "prediction" in item:
+                item = item["prediction"]
+            else:
+                raise ValueError("Prediction object does not contain a value.")
+            continue
+        break
+    else:
+        raise ValueError("Prediction nesting is too deep.")
+
+    if item is None or isinstance(item, bool):
+        raise ValueError("Prediction is not numeric.")
+    value = float(item)
+    if not math.isfinite(value):
+        raise ValueError("Prediction must be finite.")
+    return value
 
 
 class LocalProvider:
@@ -86,31 +115,50 @@ class VertexProvider:
             f"https://{self.location}-aiplatform.googleapis.com/v1/projects/{self.project}"
             f"/locations/{self.location}/endpoints/{self.endpoint}:predict"
         )
-        instances = [{column: float(row[column]) for column in numeric_columns} for row in rows]
-        payload = json.dumps({"instances": instances}).encode("utf-8")
-        req = request.Request(
-            url,
-            data=payload,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            method="POST",
-        )
+        # AutoML tabular CSV models expose numeric feature values as strings in
+        # their generated instance schema, then cast them inside the model.
+        instances = [
+            {column: str(float(row[column])) for column in numeric_columns}
+            for row in rows
+        ]
         try:
-            with request.urlopen(req, timeout=8) as response:
-                result = json.loads(response.read().decode("utf-8"))
+            response = httpx.post(
+                url,
+                json={"instances": instances},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=8,
+            )
+            response.raise_for_status()
+            result = response.json()
+        except httpx.HTTPStatusError as exc:
+            detail = ""
+            try:
+                error_payload = exc.response.json()
+                if isinstance(error_payload, Mapping):
+                    error = error_payload.get("error")
+                    if isinstance(error, Mapping):
+                        detail = str(error.get("message", "")).strip()
+                    elif isinstance(error, str):
+                        detail = error.strip()
+            except ValueError:
+                pass
+            if not detail:
+                detail = exc.response.text.strip()
+            status = exc.response.status_code
+            message = f"Vertex AI request failed ({status})"
+            if detail:
+                message = f"{message}: {detail[:800]}"
+            raise RuntimeError(message) from exc
         except Exception as exc:
             raise RuntimeError(f"Vertex AI request failed: {exc}") from exc
-        predictions = result.get("predictions")
+        predictions = result.get("predictions") if isinstance(result, Mapping) else None
         if not isinstance(predictions, list) or len(predictions) != len(rows):
             raise RuntimeError("Vertex AI response schema did not match the request.")
         values = []
         try:
             for item in predictions:
-                if isinstance(item, dict):
-                    item = item.get("value", item.get("prediction"))
-                if isinstance(item, list):
-                    item = item[0]
-                values.append(float(item))
-        except (IndexError, TypeError, ValueError) as exc:
+                values.append(_regression_prediction_value(item))
+        except (TypeError, ValueError) as exc:
             raise RuntimeError("Vertex AI response schema did not match the request.") from exc
         return ProviderResult(values, self.name, [])
 
@@ -164,7 +212,7 @@ class VertexProvider:
             "project": self.project or None,
             "location": self.location,
             "endpoint_id": self.endpoint or None,
-            "schema": "23 numeric features (AutoML CSV)",
+            "schema": "23 numeric feature values encoded as AutoML CSV strings",
         }
 
 
