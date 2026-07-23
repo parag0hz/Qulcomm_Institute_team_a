@@ -1,4 +1,4 @@
-@import "../../cfa_service/static/styles.css";
+@import "../../backend/cfa_service/static/styles.css";
 
 #root { min-height: 100vh; }
 .app-loading { display: grid; min-height: 100vh; place-items: center; color: var(--muted); background: #edf1f3; font-size: 13px; }

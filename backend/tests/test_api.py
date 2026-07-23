@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from web.cfa_service.app import app
-from web.cfa_service.predictor import load_parameter_schema
+from backend.cfa_service.app import app
+from backend.cfa_service.predictor import load_parameter_schema
 
 
 EXPECTED_API_PATHS = {
@@ -81,7 +81,7 @@ class ParagonApiTest(unittest.TestCase):
             "uncertainty": {"estimate": 0.01, "lower": 0.224, "upper": 0.264},
             "warnings": [],
         }
-        with patch("web.cfa_service.app.maybe_predict_parameters", return_value=fixture):
+        with patch("backend.cfa_service.app.maybe_predict_parameters", return_value=fixture):
             response = self.client.post("/api/predict/parameters", json=self.design)
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -122,9 +122,9 @@ class ParagonApiTest(unittest.TestCase):
             "disclaimer": "Validate with CFD.",
         }
         with (
-            patch("web.cfa_service.app.analyze_parameters", return_value=analysis_fixture),
-            patch("web.cfa_service.app.optimize_parameters", return_value=optimization_fixture),
-            patch("web.cfa_service.app.ask_copilot", return_value=copilot_fixture),
+            patch("backend.cfa_service.app.analyze_parameters", return_value=analysis_fixture),
+            patch("backend.cfa_service.app.optimize_parameters", return_value=optimization_fixture),
+            patch("backend.cfa_service.app.ask_copilot", return_value=copilot_fixture),
         ):
             analysis = self.client.post("/api/analyze/parameters", json=self.design)
             optimization = self.client.post(
@@ -142,7 +142,7 @@ class ParagonApiTest(unittest.TestCase):
         self.assertEqual(copilot.status_code, 200)
         self.assertIn("evidence", copilot.json())
 
-    @patch("web.cfa_service.app.test_vertex_provider")
+    @patch("backend.cfa_service.app.test_vertex_provider")
     def test_vertex_test_success_contract(self, vertex_provider):
         vertex_provider.return_value = {
             "provider": "Vertex AI",
@@ -157,8 +157,8 @@ class ParagonApiTest(unittest.TestCase):
         self.assertEqual(response.json()["provider"], "Vertex AI")
         vertex_provider.assert_called_once()
 
-    @patch("web.cfa_service.app.predict_from_stl_points")
-    @patch("web.cfa_service.app.parse_stl_bytes")
+    @patch("backend.cfa_service.app.predict_from_stl_points")
+    @patch("backend.cfa_service.app.parse_stl_bytes")
     def test_stl_prediction_contract(self, parse_stl, predict_points):
         parse_stl.return_value = SimpleNamespace(
             points=[(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
@@ -226,7 +226,7 @@ class ParagonApiTest(unittest.TestCase):
         )
         self.assert_error(wrong_extension, 400, "invalid_file_type")
 
-        with patch("web.cfa_service.app.MAX_UPLOAD_BYTES", 8):
+        with patch("backend.cfa_service.app.MAX_UPLOAD_BYTES", 8):
             oversized = self.client.post(
                 "/api/predict",
                 files={"file": ("sample.stl", b"123456789", "model/stl")},
@@ -240,7 +240,7 @@ class ParagonApiTest(unittest.TestCase):
         self.assert_error(invalid_stl, 400, "invalid_stl")
 
     def test_json_request_size_limit(self):
-        with patch("web.cfa_service.app.MAX_JSON_BYTES", 32):
+        with patch("backend.cfa_service.app.MAX_JSON_BYTES", 32):
             response = self.client.post(
                 "/api/predict/parameters",
                 content=json.dumps(self.design),
@@ -254,7 +254,7 @@ class ParagonApiTest(unittest.TestCase):
             yield b"x" * 64
             yield b'"}'
 
-        with patch("web.cfa_service.app.MAX_JSON_BYTES", 32):
+        with patch("backend.cfa_service.app.MAX_JSON_BYTES", 32):
             response = self.client.post(
                 "/api/predict/parameters",
                 content=chunks(),
@@ -263,7 +263,7 @@ class ParagonApiTest(unittest.TestCase):
         self.assert_error(response, 413, "payload_too_large")
 
     @patch(
-        "web.cfa_service.app.test_vertex_provider",
+        "backend.cfa_service.app.test_vertex_provider",
         side_effect=RuntimeError("ADC unavailable"),
     )
     def test_vertex_failure_uses_common_error_contract(self, _vertex_provider):
@@ -279,9 +279,9 @@ class ParagonApiTest(unittest.TestCase):
         response = self.client.get("/api/does-not-exist")
         self.assert_error(response, 404, "not_found")
 
-    @patch("web.cfa_service.app.LOGGER.exception")
+    @patch("backend.cfa_service.app.LOGGER.exception")
     @patch(
-        "web.cfa_service.app.load_parameter_schema",
+        "backend.cfa_service.app.load_parameter_schema",
         side_effect=RuntimeError("sensitive detail"),
     )
     def test_unhandled_errors_do_not_leak_internal_details(self, _load_schema, log_exception):

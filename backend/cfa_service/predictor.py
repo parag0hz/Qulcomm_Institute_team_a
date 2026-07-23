@@ -14,9 +14,9 @@ from .providers import ProviderRouter
 from .stl import Point, normalize_preview_points
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-PARAMETRIC_DATA_PATH = REPO_ROOT / "ParametricModels" / "DrivAerNet_ParametricData.csv"
-DEFAULT_MODEL_PATH = REPO_ROOT / "web" / "artifacts" / "cfa_parametric_baseline.pkl"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+PARAMETRIC_DATA_PATH = BACKEND_ROOT / "ParametricModels" / "DrivAerNet_ParametricData.csv"
+DEFAULT_MODEL_PATH = BACKEND_ROOT / "artifacts" / "cfa_parametric_baseline.pkl"
 TARGET_COLUMN = "Average Cd"
 NON_FEATURE_COLUMNS = {
     "Experiment",

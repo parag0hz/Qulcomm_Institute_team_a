@@ -12,7 +12,7 @@ assets
 **/node_modules
 **/dist
 **/build
-src/web/artifacts
+backend/artifacts
 
 # 파이썬 캐시
 **/__pycache__

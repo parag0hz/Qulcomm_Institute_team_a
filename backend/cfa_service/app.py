@@ -48,7 +48,7 @@ from .paddle_cloud import cloud_from_paddle_bytes, to_preview
 
 APP_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = APP_ROOT.parents[1]
-FRONTEND_DIST = REPO_ROOT / "web" / "frontend" / "dist"
+FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 MODEL_ASSETS = APP_ROOT / "static" / "models"
 MAX_UPLOAD_BYTES = 32 * 1024 * 1024
 MAX_JSON_BYTES = 1024 * 1024
@@ -394,7 +394,7 @@ def serve_spa(full_path: str) -> FileResponse:
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("web.cfa_service.app:app", host="127.0.0.1", port=8001)
+    uvicorn.run("backend.cfa_service.app:app", host="127.0.0.1", port=8001)
 
 
 if __name__ == "__main__":

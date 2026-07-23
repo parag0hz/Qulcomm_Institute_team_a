@@ -6,8 +6,8 @@ import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from web.cfa_service.copilot import ask_copilot, copilot_status
-from web.cfa_service.predictor import (
+from backend.cfa_service.copilot import ask_copilot, copilot_status
+from backend.cfa_service.predictor import (
     DEFAULT_MODEL_PATH,
     analyze_parameters,
     load_dataset_stats,
@@ -16,9 +16,9 @@ from web.cfa_service.predictor import (
     optimize_parameters,
     predict_from_stl_points,
 )
-from web.cfa_service.providers import ProviderResult
-from web.cfa_service.stl import parse_stl_bytes
-from web.models.train_parametric_baseline import select_model
+from backend.cfa_service.providers import ProviderResult
+from backend.cfa_service.stl import parse_stl_bytes
+from backend.models.train_parametric_baseline import select_model
 
 
 ASCII_STL = b"""solid cube
@@ -122,7 +122,7 @@ class CFACoreTest(unittest.TestCase):
 
     def test_designer_analysis_and_optimization_without_model_artifact(self):
         design, router = design_and_router()
-        with patch("web.cfa_service.predictor._PROVIDER_ROUTER", router):
+        with patch("backend.cfa_service.predictor._PROVIDER_ROUTER", router):
             prediction = maybe_predict_parameters(design)
             self.assertEqual(prediction["provider"], "Deterministic test provider")
             self.assertIn(prediction["domain_status"], {"inside", "edge", "outside"})
@@ -164,7 +164,7 @@ class CFACoreTest(unittest.TestCase):
     def test_copilot_works_without_external_api_key_or_model_artifact(self):
         design, router = design_and_router()
         with (
-            patch("web.cfa_service.predictor._PROVIDER_ROUTER", router),
+            patch("backend.cfa_service.predictor._PROVIDER_ROUTER", router),
             patch.dict("os.environ", {}, clear=True),
         ):
             status = copilot_status()
