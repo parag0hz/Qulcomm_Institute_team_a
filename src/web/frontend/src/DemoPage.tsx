@@ -392,7 +392,7 @@ export function DemoPage() {
 
       <footer className="demo-footer">
         <div className="demo-wrap">
-          Chosun University · Qualcomm Institute Team A — trained on{" "}
+          Qualcomm Institute Team A — trained on{" "}
           <a href="https://github.com/Mohamedelrefaie/DrivAerNet" target="_blank" rel="noreferrer">
             DrivAerNet++
           </a>{" "}
