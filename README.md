@@ -12,6 +12,38 @@ Paragon replaces that inner loop with a learned surrogate. Upload a 3D model or 
 
 ---
 
+## Team Introduction
+
+**Chosun University — Qualcomm Institute Team A**
+
+| Member | GitHub | Focus |
+|---|---|---|
+| Dongwon Lim | [@parag0hz](https://github.com/parag0hz) | ML pipeline, PointNet training & serving, demo, deployment |
+| Soomin | [@barcybarcy](https://github.com/barcybarcy) | Web application (frontend + FastAPI backend), Vertex AutoML integration |
+| Sangwoo | [@tmrhdwja2-alt](https://github.com/tmrhdwja2-alt) | Application development |
+| Chaewon Jeong | [@chaewon8699-source](https://github.com/chaewon8699-source) | Application development |
+| Minju | [@chaeminju](https://github.com/chaeminju) | Application development |
+
+> _Roles above are drawn from repository history — team members can refine their own descriptions._
+
+## Service Introduction
+
+**Paragon (CFA — Car Fluid Analyzer)** predicts a vehicle's aerodynamic drag coefficient (Cd) the moment you change its shape. CFD — the standard way to measure drag — takes days to weeks per design and needs supercomputer-scale compute, so early-stage designers rarely run it. Paragon replaces that inner loop with a trained surrogate: adjust design parameters or upload a 3D point cloud, and get a Cd estimate in milliseconds, with the uncertainty stated rather than hidden.
+
+**Who it's for** — automotive designers who need fast aerodynamic feedback without CFD expertise, and product teams comparing candidate designs early.
+
+**What you can do**
+
+- **Move design sliders** and watch the 3D vehicle and predicted Cd update live.
+- **Upload a point cloud** (`.paddle_tensor` / `.npy`) and get a prediction from the trained PointNet model — the same model behind the held-out benchmark.
+- **Compare candidates** and see where each ranks against the DrivAerNet++ design population.
+- **Optimize toward a target Cd** and receive concrete design-change directions.
+- **Ask the Copilot** — it explains each result using the model's own numbers, never invented figures.
+
+**▶ Try it live:** <https://qulcomm-institute-team-a.onrender.com/>
+
+---
+
 ## Results
 
 We train on [DrivAerNet++](https://github.com/Mohamedelrefaie/DrivAerNet) (Elrefaie et al., NeurIPS 2024) — 7,713 sedan variants, 100k points each, with CFD-computed Cd labels.
@@ -133,8 +165,9 @@ On Render, `render.yaml` provisions it as a Blueprint. The frontend bundle is bu
 
 ---
 
-## Team
+## Documents
 
-Qualcomm Institute Team A
+- **[Product Requirements Document (PDF)](docs/PRD.pdf)** — problem, users, feature requirements, scope, and risks.
+- **[ML research pipeline](ml/README.md)** — training, evaluation protocol, and full experiment reports.
 
 Dataset: DrivAerNet++, Elrefaie et al., *NeurIPS 2024 Datasets & Benchmarks*.
