@@ -7,3 +7,4 @@ pandas==2.2.2
 scikit-learn==1.4.2
 google-auth[requests]==2.40.3
 # The default training artifact is RandomForest and needs no optional estimator runtime.
+onnxruntime==1.27.0

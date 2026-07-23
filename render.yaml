@@ -1,0 +1,35 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# 저장소 루트에 두면 Render 대시보드에서 "New > Blueprint"로 한 번에 생성된다.
+
+services:
+  - type: web
+    name: paragon
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore # 한국에서 가장 가까운 리전
+    branch: main
+    healthCheckPath: /api/status
+    autoDeployTrigger: commit
+
+    envVars:
+      # 로컬 학습 모델(RandomForest)을 사용. Vertex AI를 쓰려면 vertex로 바꾸고
+      # 아래 VERTEX_* 값을 채운 뒤 GCP 인증을 붙여야 한다.
+      - key: PARAGON_PROVIDER
+        value: local
+
+      # --- 선택: Vertex AI 예측 엔드포인트 ---
+      - key: VERTEX_PROJECT_ID
+        sync: false
+      - key: VERTEX_LOCATION
+        value: us-central1
+      - key: VERTEX_ENDPOINT_ID
+        sync: false
+
+      # --- 선택: Design Copilot LLM ---
+      # 키가 없으면 계산 근거 기반 로컬 설명이 그대로 동작한다.
+      - key: OPENAI_API_KEY
+        sync: false # 대시보드에서 직접 입력 (커밋 금지)
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
