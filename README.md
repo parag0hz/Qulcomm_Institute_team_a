@@ -8,7 +8,7 @@ CFD is the standard way to measure aerodynamic drag, and it is slow and expensiv
 
 Paragon replaces that inner loop with a learned surrogate. Upload a 3D model or move a slider, get a Cd estimate immediately. It is **not** a CFD replacement — it is the fast pre-filter that runs *before* CFD.
 
-![Paragon Vehicle Design Studio](assets/paragon-studio.png)
+![Paragon landing page — reading drag from a held-out point cloud](assets/demo-landing.png)
 
 ---
 
