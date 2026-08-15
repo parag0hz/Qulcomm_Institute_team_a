@@ -1,5 +1,9 @@
-# Paragon — Car Drag Analyzer
+# Paragon — Vehicle Drag Coefficient Analysis
 
+> **Executive Summary**  
+> Paragon developed an AI service platform that predicts a vehicle’s aerodynamic drag coefficient (Cd) based solely on its exterior design. Traditionally, estimating the drag coefficient requires designing the vehicle and performing computational fluid dynamics (CFD) simulations, a process that is both time-consuming and expensive. By leveraging AI technologies, the platform can generate accurate drag coefficient predictions in a fraction of the time. This significantly reduces development costs while accelerating the vehicle design process. The solution improves productivity not only for automotive designers but also for engineers involved in vehicle development.
+
+---
 **Predict automotive drag coefficient (Cd) in seconds, not weeks.**
 
 **▶ [Live demo](https://qulcomm-institute-team-a.onrender.com/)** — free instance, so the first request after idle takes ~1 minute to wake.
