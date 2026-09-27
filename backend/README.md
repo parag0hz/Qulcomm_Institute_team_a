@@ -4,7 +4,7 @@
 
 The web stack is now:
 
-- FastAPI and Uvicorn for the eight JSON/file-upload API routes, validation, provider fallback, and production static serving.
+- FastAPI and Uvicorn for the thirteen JSON/file-upload API routes, validation, provider fallback, and production static serving.
 - React, Vite, and TypeScript for the designer workspace.
 - Zustand for the current design, baseline, history, locks, variants, and recommendation preview.
 - Three.js, wrapped by a React component, for the QEM GLB viewer, approximate morphing, procedural wheels, and dimension overlays.
@@ -16,14 +16,19 @@ The web stack is now:
 - The repository's tabular CSV and generated local model artifact for Local RandomForest prediction
 - Optional: Google Cloud SDK for Vertex AI and an OpenAI API key for LLM-backed Copilot responses
 
-Create an isolated Python environment, then install the web runtime and frontend dependencies from the repository root:
+Create an isolated Python environment and install the web runtime from the repository root:
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r backend/requirements-web.txt
-npm install
+```
+
+The frontend is a standalone Vite project, so its dependencies install from `frontend/`:
+
+```bash
+cd frontend && npm install
 ```
 
 Keep this virtual environment active for the FastAPI, model-training, and Python test commands below. This prevents macOS from mixing a Homebrew Python with another framework Python.
@@ -43,9 +48,10 @@ uvicorn backend.cfa_service.app:app \
   --reload
 ```
 
-Terminal 2 — React development server:
+Terminal 2 — React development server (from `frontend/`):
 
 ```bash
+cd frontend
 npm run dev:web
 ```
 
@@ -62,36 +68,40 @@ FastAPI's development documentation is available at:
 Build the React app, then start only FastAPI:
 
 ```bash
-npm run build:web
+(cd frontend && npm run build:web)
 
 uvicorn backend.cfa_service.app:app \
   --host 127.0.0.1 \
   --port 8001
 ```
 
-Open `http://127.0.0.1:8001`. FastAPI serves `frontend/dist` and the GLB assets under `/static/models` from the same origin. If the React build is missing, the root page returns an instruction to run `npm run build:web`; API routes and API documentation remain separate.
+Open `http://127.0.0.1:8001`. FastAPI serves `frontend/dist` and the GLB assets under `/static/models` from the same origin. If the React build is missing, the root page returns an instruction to run `npm run build:web` inside `frontend/`; API routes and API documentation remain separate.
 
 ## Project Structure
 
 ```text
-backend/
-├── cfa_service/
-│   ├── app.py             # FastAPI routes, validation handlers, SPA/static serving
-│   ├── schemas.py         # Pydantic request models for 23 numeric + 2 categorical inputs
-│   ├── predictor.py       # local prediction, domain analysis, sensitivity, optimization
-│   ├── providers.py       # Local/Vertex provider behavior and fallback
-│   ├── copilot.py         # grounded local explainer and optional LLM call
-│   ├── stl.py             # STL parsing and preview prediction input
-│   └── static/models/     # generated browser GLB
-├── frontend/
-│   ├── src/components/    # controls, viewer, results, variants, optimizer, Copilot
-│   ├── src/api.ts         # typed API client and error handling
-│   ├── src/store.ts       # Zustand workspace state and localStorage migration
-│   ├── src/types.ts       # shared frontend request/response types
-│   └── vite.config.ts     # development proxy, build, and Vitest configuration
-├── models/                # QEM preprocessing and local model training scripts
-├── tests/                 # API contract and core Python tests
-└── requirements-web.txt   # FastAPI web runtime dependencies
+.
+├── backend/
+│   ├── cfa_service/
+│   │   ├── app.py             # FastAPI routes, validation handlers, SPA/static serving
+│   │   ├── config.py          # .env loading, before provider modules read configuration
+│   │   ├── schemas.py         # Pydantic request models for 23 numeric + 2 categorical inputs
+│   │   ├── predictor.py       # local prediction, domain analysis, sensitivity, optimization
+│   │   ├── providers.py       # Local/Vertex provider behavior and fallback
+│   │   ├── copilot.py         # grounded local explainer and optional LLM call
+│   │   ├── pointnet.py        # PointNet serving through ONNX Runtime (CPU)
+│   │   ├── paddle_cloud.py    # .paddle_tensor parsing and FPS-2048 sampling
+│   │   ├── stl.py             # STL parsing and preview prediction input
+│   │   └── static/models/     # generated browser GLB
+│   ├── models/                # QEM preprocessing and local model training scripts
+│   ├── tests/                 # API contract and core Python tests
+│   └── requirements-web.txt   # FastAPI web runtime dependencies
+└── frontend/                  # standalone Vite project, sibling of backend/
+    ├── src/components/        # controls, viewer, results, variants, optimizer, Copilot
+    ├── src/api.ts             # typed API client and error handling
+    ├── src/store.ts           # Zustand workspace state and localStorage migration
+    ├── src/types.ts           # shared frontend request/response types
+    └── vite.config.ts         # development proxy, build, and Vitest configuration
 ```
 
 The production build output under `frontend/dist` is generated by Vite.
@@ -211,6 +221,7 @@ The key is never sent to the browser. The server calls the OpenAI Responses API 
 Run frontend type checking, component tests, and the production build:
 
 ```bash
+cd frontend
 npm run typecheck
 npm run test:web
 npm run build:web
@@ -223,4 +234,4 @@ python -m unittest discover -s backend/tests -p 'test_*.py'
 python -m compileall -q backend/cfa_service backend/models backend/tests
 ```
 
-The Python API tests cover the eight routes, OpenAPI documents, field-level validation, the 32 MB STL boundary, common error responses, Vertex success/timeout/schema failures, and the 60-second fallback circuit breaker. The model-backed integration tests run when `backend/artifacts/cfa_parametric_baseline.pkl` exists; API contracts remain testable in a clean clone with deterministic fixtures. Browser smoke testing should use the production-style local run when checking the real GLB, morphing, wheel selection, camera views, dimensions, variants, optimizer, and Copilot together.
+The Python API tests cover the API routes, OpenAPI documents, field-level validation, the 32 MB STL boundary, common error responses, Vertex success/timeout/schema failures, and the 60-second fallback circuit breaker. The model-backed integration tests run when `backend/artifacts/cfa_parametric_baseline.pkl` exists; API contracts remain testable in a clean clone with deterministic fixtures. Browser smoke testing should use the production-style local run when checking the real GLB, morphing, wheel selection, camera views, dimensions, variants, optimizer, and Copilot together.
