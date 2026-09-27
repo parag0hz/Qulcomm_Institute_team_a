@@ -1,10 +1,12 @@
-# Paragon
+# Paragon — Vehicle Drag Coefficient Analysis
 Paragon — the standard a design is measured against.
 
-Aerodynamic Drag Prediction & Design Exploration
+**Predict automotive drag coefficient (Cd) in seconds, not weeks.**
 
 ## Executive summary
-Paragon is an AI service platform for automotive designers and small engineering teams who need aerodynamic feedback long before they can afford CFD. Users upload a 3D point cloud of a vehicle, or simply move a design slider, and the platform predicts the aerodynamic drag coefficient (Cd) in milliseconds using a PointNet surrogate trained on CFD-labelled data. Beyond the number, the platform reports where the design ranks within the DrivAerNet++ population, which design parameters drive the result, and whether the model is confident at that size of change. A design copilot built on a large language model (OpenAI GPT) then explains the result in plain language, using only figures the model itself produced. Paragon is **not** a CFD replacement — it is the fast pre-filter that runs *before* CFD, making early-stage aerodynamic exploration accessible to teams that do not own a compute cluster.
+Paragon developed an AI service platform that predicts a vehicle’s aerodynamic drag coefficient (Cd) based solely on its exterior design. Traditionally, estimating the drag coefficient requires designing the vehicle and performing computational fluid dynamics (CFD) simulations, a process that is both time-consuming and expensive. By leveraging AI technologies, the platform can generate accurate drag coefficient predictions in a fraction of the time. This significantly reduces development costs while accelerating the vehicle design process. The solution improves productivity not only for automotive designers but also for engineers involved in vehicle development.
+
+Concretely: upload a 3D point cloud of a vehicle, or simply move a design slider, and Paragon predicts Cd in milliseconds with a PointNet surrogate trained on CFD-labelled data. Beyond the number, it reports where the design ranks within the DrivAerNet++ population, which design parameters drive the result, and whether the model is confident at that size of change. A design copilot built on a large language model (OpenAI GPT) then explains the result in plain language, using only figures the model itself produced. Paragon is **not** a CFD replacement — it is the fast pre-filter that runs *before* CFD, making early-stage aerodynamic exploration accessible to teams that do not own a compute cluster.
 
 **▶ [Live demo](https://qulcomm-institute-team-a.onrender.com/)** — free instance, so the first request after idle takes about a minute to wake.
 
