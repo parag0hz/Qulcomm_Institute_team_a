@@ -116,7 +116,7 @@ Handoff §4 says points with `|y| > 1.0` are side mirrors. **True for a typical 
 
 Two principles drive every design decision here; violating either silently destroys the result.
 
-**1. Do not normalize away scale.** Cd is dimensionless, but in this dataset absolute vehicle height is the single strongest predictor (r = +0.82). The standard PointNet habit of rescaling each cloud to a unit sphere throws that signal away. Keep meter scale, and feed global dimensions as an auxiliary late-fusion input. LiDAR supplies true metric scale, so this is legitimate at inference.
+**1. Do not normalize away scale.** Cd is dimensionless, but in this dataset absolute vehicle height is the single strongest predictor (r = +0.827 across all 7,713 designs, [DATA_SUMMARY.md](DATA_SUMMARY.md) §7). The standard PointNet habit of rescaling each cloud to a unit sphere throws that signal away. Keep meter scale, and feed global dimensions as an auxiliary late-fusion input. LiDAR supplies true metric scale, so this is legitimate at inference.
 
 **2. Inject the degradation you will face at test time.** Train against synthesized phone-scan corruption (one-sided occlusion, noise, sparsity, glass dropout), not clean clouds.
 

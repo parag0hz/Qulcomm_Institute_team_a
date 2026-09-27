@@ -21,10 +21,12 @@ python scripts/protocol.py        # 분할·지표 프로토콜 검증
 | [A100_BOOTSTRAP.md](A100_BOOTSTRAP.md) | 새 서버 환경·데이터 구축 |
 | [A100_DL_HANDOFF.md](A100_DL_HANDOFF.md) | A100에서 돌릴 딥러닝 작업 지시서 |
 
-## 핵심 결과 (교집합 3,704대 · K=5 rotating fold)
+## 핵심 결과 (교집합 3,704대 · K=5 rotating fold · 2048점 A100 완주판)
 | 모델 | 입력 | R² | MAE |
 |---|---|---:|---:|
-| **PointNet** | 포인트클라우드 | **0.853** | 0.0069 |
+| **PointNet** | 포인트클라우드 | **0.878** | 0.0063 |
+| DGCNN | 포인트클라우드 | 0.847 | 0.0071 |
+| RegDGCNN | 포인트클라우드 | 0.805 | 0.0081 |
 | AutoGluon | 설계 파라미터 23개 | 0.573 | 0.0117 |
 
-동일 조건에서도 형상 기반 딥러닝이 파라미터 기반 ML을 크게 앞선다.
+동일 조건에서도 형상 기반 딥러닝이 파라미터 기반 ML을 크게 앞선다 — 격차 **+0.305**. 최약 형상 모델(RegDGCNN 0.805)조차 최강 파라미터 모델(AutoGluon 0.573)을 넘는다. 전체 표·실험 조건은 [PROTOCOL_COMPARISON.md](PROTOCOL_COMPARISON.md).
