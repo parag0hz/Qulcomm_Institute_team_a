@@ -30,7 +30,12 @@ backend/artifacts/
 # --- ml/ 산출물 (대용량, 저장소 미포함) ---
 ml/data/*
 !ml/data/demo_holdout.json
-ml/outputs/
+ml/outputs/*
+# 결과 근거로 저장소에 남기는 실행 기록 (README·PROTOCOL_COMPARISON의 수치 출처)
+!ml/outputs/protocol_dl2048_a100.json
+!ml/outputs/pointnet_n100000_dims0_meter.json
+!ml/outputs/dgcnn_n100000_dims0_meter.json
+!ml/outputs/regdgcnn_n100000_dims0_meter.json
 ml/AutogluonModels/
 ml/wandb/
 ml/external/

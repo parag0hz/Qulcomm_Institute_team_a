@@ -161,7 +161,7 @@ The honest comparison. Both tracks see identical vehicles and identical splits (
 | LightGBM | 23 design parameters | 0.557 ± 0.033 | 11.75 | 78.0 % |
 | RandomForest | 23 design parameters | 0.486 ± 0.025 | 12.78 | 75.8 % |
 
-Every shape model beats every parameter model: even the weakest, RegDGCNN (0.805), clears the strongest parameter model, AutoGluon (0.573), by 0.23 — the choice of input modality dominates the choice of model. The gap is widest exactly where it matters. On **Estate** bodies, parameter models collapse — AutoGluon reaches R² +0.038 and RandomForest goes *negative* (−0.257), i.e. worse than predicting the mean. PointNet holds at **+0.824**. Global averages hide this, which is why every number here is decomposed by body type.
+Every shape model beats every parameter model: even the weakest, RegDGCNN (0.805), clears the strongest parameter model, AutoGluon (0.573), by 0.23 — the choice of input modality dominates the choice of model. The gap is widest exactly where it matters. On **Estate** bodies, parameter models collapse — AutoGluon reaches R² +0.038 and RandomForest goes *negative* (−0.257), i.e. worse than predicting the mean. PointNet holds at **+0.823**. Global averages hide this, which is why every number here is decomposed by body type.
 
 ### Against the published benchmark
 On the official DrivAerNet++ test split (1,158 designs):
