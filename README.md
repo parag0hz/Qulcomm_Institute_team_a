@@ -292,8 +292,20 @@ We also acknowledge the following source of research support:
 This research was supported by the MSIT (Ministry of Science and ICT), Korea, under the National Program for Excellence in SW (2021-0-01393), supervised by the IITP (Institute of Information & Communications Technology Planning & Evaluation).
 
 ## Dataset, AI Model & References
-### Dataset
-- **DrivAerNet++** — A large-scale multimodal car dataset of 8,000 designs with high-fidelity CFD simulations, covering fastback, notchback and estateback bodies with varied underbody and wheel configurations. More than 39 TB of engineering data, produced with roughly 3 × 10⁶ CPU-hours on 2,880 cores. Paragon trains on the 7,713 designs that ship with point clouds, and on the 4,165-design parametric CSV for the parameter track. [Elrefaie et al. (2024)]
+
+### Datasets and data sources
+
+DrivAerNet++ is a large-scale multimodal car dataset of 8,000 designs with high-fidelity CFD simulations, covering fastback, notchback and estateback bodies with varied underbody and wheel configurations. It contains more than 39 TB of engineering data, produced with roughly 3 × 10⁶ CPU-hours on 2,880 cores. The table below identifies the original dataset authors and the distribution used by Paragon.
+
+| Dataset / source | Data used and purpose | Web links |
+|---|---|---|
+| **DrivAerNet++** — Mohamed Elrefaie, Florin Morar, Angela Dai, and Faez Ahmed | Vehicle point clouds, CFD-computed Cd labels, and benchmark train/validation/test splits, used to train and evaluate shape-based drag prediction models. The prepared point clouds used by this project were downloaded from the PaddleScience / Baidu distribution listed below. | [Paper](https://arxiv.org/abs/2406.09624) · [Official repository](https://github.com/Mohamedelrefaie/DrivAerNet) · [Harvard Dataverse collection](https://dataverse.harvard.edu/dataverse/DrivAerNet) |
+| **DrivAerNet parametric data** — Mohamed Elrefaie, Angela Dai, and Faez Ahmed | Vehicle design parameters and aerodynamic labels, used to train Random Forest and other tabular models and to compare parameter-based and shape-based predictions on the same vehicles. | [Paper](https://arxiv.org/abs/2403.08055) · [Official parametric data](https://github.com/Mohamedelrefaie/DrivAerNet/blob/main/ParametricModels/DrivAerNet_ParametricData.csv) |
+| **PaddleScience / Baidu distribution of DrivAerNet++** | The distribution used by our point-cloud training pipeline. It provides `.paddle_tensor` point-cloud files, Cd labels, and split files as separate downloads. This is a prepared distribution of DrivAerNet++, not an independently created dataset; credit remains with the original dataset authors. | [PaddleScience repository](https://github.com/PaddlePaddle/PaddleScience/tree/develop/examples/drivaernetplusplus) · [Point-cloud archive used by the project — large download, approximately 8.63 GiB](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar) · [Cd label file](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAerNetPlusPlus_Drag_8k.csv) |
+
+**Benchmark split files from the same distribution:** [Training IDs](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/train_design_ids.txt) · [Validation IDs](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/val_design_ids.txt) · [Test IDs](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/test_design_ids.txt). The [data setup guide](ml/A100_BOOTSTRAP.md) records the download and preparation steps used by the project.
+
+**Project data scope:** Our downloaded snapshot contains 7,713 point clouds, while the parametric CSV contains 4,165 designs. The matched comparison uses 3,704 designs shared by both sources after excluding five demo holdouts, as documented in the [comparison protocol](ml/PROTOCOL_COMPARISON.md). These are the counts used by this project, not a claim about every upstream release. Harvard Dataverse is the original authors' dataset collection; the prepared `.paddle_tensor` files used here came from PaddleScience / Baidu.
 
 ### AI Model
 - **PointNet** — Selected for deployment. Highest accuracy of the four backbones evaluated, and the smallest at 0.81 M parameters, which is what makes CPU serving viable. [Qi et al. (2017)]
