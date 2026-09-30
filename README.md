@@ -297,15 +297,15 @@ This research was supported by the MSIT (Ministry of Science and ICT), Korea, un
 
 ### Datasets and data sources
 
-- **DrivAerNet++** — Vehicle geometry, design parameters, and CFD-computed Cd labels used to train and evaluate drag prediction models. [Paper](https://arxiv.org/abs/2406.09624) · [Official repository](https://github.com/Mohamedelrefaie/DrivAerNet) · [Harvard Dataverse](https://dataverse.harvard.edu/dataverse/DrivAerNet)
-- **PaddleScience / Baidu distribution** — Source of our 7,713 DrivAerNet++ point clouds (`.paddle_tensor`, 100k points each), Cd labels, and benchmark splits. [Documentation](https://paddlescience.readthedocs.io/en/latest/en/examples/drivaernetplusplus/) · [Repository](https://github.com/PaddlePaddle/PaddleScience/tree/develop/examples/drivaernetplusplus) · [Point-cloud download (8.63 GiB)](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar) · [Cd labels](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAerNetPlusPlus_Drag_8k.csv) · [Setup and split downloads](ml/A100_BOOTSTRAP.md)
-- **DrivAerNet++ parametric data** — 4,165 designs used for Random Forest and other tabular models. [CSV](https://github.com/Mohamedelrefaie/DrivAerNet/blob/main/ParametricModels/DrivAerNet_ParametricData.csv) · [Comparison protocol](ml/PROTOCOL_COMPARISON.md)
+- **[DrivAerNet++](https://github.com/Mohamedelrefaie/DrivAerNet)** — Vehicle point clouds, design parameters, and CFD-computed drag coefficients used to train and evaluate our prediction models. [Paper](https://arxiv.org/abs/2406.09624) ·  [Harvard Dataverse](https://dataverse.harvard.edu/dataverse/DrivAerNet)
+- **[PaddleScience / Baidu distribution](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar)** — The DrivAerNet++ distribution providing the .paddle_tensor point clouds, Cd labels, and benchmark splits used in our training pipeline. [Documentation](https://paddlescience.readthedocs.io/en/latest/en/examples/drivaernetplusplus/) · [Repository](https://github.com/PaddlePaddle/PaddleScience/tree/develop/examples/drivaernetplusplus) · [Point-cloud download (8.63 GiB)](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar) · [Cd labels](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAerNetPlusPlus_Drag_8k.csv) · [Setup and split downloads](ml/A100_BOOTSTRAP.md)
 
 ### AI Model
 - **PointNet** — Selected for deployment. Highest accuracy of the four backbones evaluated, and the smallest at 0.81 M parameters, which is what makes CPU serving viable. [Qi et al. (2017)]
 - **DGCNN** — Evaluated (1.80 M parameters); not deployed, lower accuracy than PointNet under identical folds. [Wang et al. (2019)]
 - **RegDGCNN** — Introduced in the original DrivAerNet paper and evaluated here on DrivAerNet++ using the authors' implementation (3.16 M parameters); not deployed. [Elrefaie et al. (2024b)]
 - **AutoGluon / LightGBM / RandomForest** — Parameter-track baselines on the 23 design parameters. RandomForest is the deployed parametric surrogate because it serves deterministically with no optional estimator runtime. [Erickson et al. (2020), Ke et al. (2017)]
+- **Google Vertex AI AutoML** — An optional tabular regression service for predicting vehicle drag coefficients (Cd) from design parameters.
 - **LLM: GPT (default `gpt-5-mini`)** — Used only to turn confirmed predictions and dataset statistics into clear explanations, never to produce the prediction itself.
 
 ### References
