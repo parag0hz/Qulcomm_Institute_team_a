@@ -297,26 +297,25 @@ This research was supported by the MSIT (Ministry of Science and ICT), Korea, un
 
 ### Datasets and data sources
 
-- **[DrivAerNet++](https://github.com/Mohamedelrefaie/DrivAerNet)** — Vehicle point clouds, design parameters, and CFD-computed drag coefficients used to train and evaluate our prediction models. [Paper](https://arxiv.org/abs/2406.09624) ·  [Harvard Dataverse](https://dataverse.harvard.edu/dataverse/DrivAerNet)
-- **[PaddleScience / Baidu distribution](https://paddlescience-docs.readthedocs.io/zh-cn/latest/en/examples/drivaernetplusplus/#2-problem-definition)** — The DrivAerNet++ distribution providing the .paddle_tensor point clouds, Cd labels, and benchmark splits used in our training pipeline. [Documentation](https://paddlescience.readthedocs.io/en/latest/en/examples/drivaernetplusplus/) · [Repository](https://github.com/PaddlePaddle/PaddleScience/tree/develop/examples/drivaernetplusplus) · [Point-cloud download (8.63 GiB)](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar) · [Cd labels](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAerNetPlusPlus_Drag_8k.csv) · [Setup and split downloads](ml/A100_BOOTSTRAP.md)
+- **[DrivAerNet++](https://github.com/Mohamedelrefaie/DrivAerNet)** — Vehicle point clouds, design parameters, and CFD-computed drag coefficients used to train and evaluate our prediction models. [Elrefaie et al. (2024a)]
+- **[PaddleScience / Baidu distribution](https://paddlescience-docs.readthedocs.io/zh-cn/latest/en/examples/drivaernetplusplus/#2-problem-definition)** — The DrivAerNet++ distribution providing the .paddle_tensor point clouds, Cd labels, and benchmark splits used in our training pipeline. [Point-cloud download (8.63 GiB)](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar)
 
 ### AI Model
-- **PointNet** — Ultimately selected for deployment on our platform due to its superior performance in vehicle drag coefficient analysis.  [Qi et al. (2017)]
-- **DGCNN** — Not selected for final deployment due to its lower performance in vehicle drag coefficient analysis. [Wang et al. (2019)]
-- **RegDGCNN** —  Not selected for final deployment due to its lower performance in vehicle drag coefficient analysis. [Elrefaie et al. (2024)]
-- **AutoGluon / LightGBM / RandomForest** — Parameter-track baselines on the 23 design parameters. RandomForest is the deployed parametric surrogate because it serves deterministically with no optional estimator runtime. [Erickson et al. (2020), Ke et al. (2017)]
-- **Google Vertex AI AutoML** — An optional tabular regression service for predicting vehicle drag coefficients (Cd) from design parameters.
-- **LLM: GPT (default `gpt-5-mini`)** — Used only to turn confirmed predictions and dataset statistics into clear explanations, never to produce the prediction itself.
+- **PointNet** — Ultimately selected for deployment on our platform due to its superior performance in vehicle drag coefficient analysis using point-cloud data.  [Qi et al. (2017)]
+- **DGCNN** — Not selected for final deployment due to its lower performance in vehicle drag coefficient analysis using point-cloud data. [Wang et al. (2019)]
+- **RegDGCNN** —  Not selected for final deployment due to its lower performance in vehicle drag coefficient analysis using point-cloud data. [Elrefaie et al. (2024b)]
+- **Google Vertex AI AutoML** — Ultimately selected for deployment on our platform due to its superior performance in vehicle drag coefficient analysis using parametric data.
+- **AutoGluon** — Not selected for final deployment due to its lower performance in vehicle drag coefficient analysis using parametric data. [Erickson et al. (2020)]
+- **LightGBM / RandomForest** — Not selected for final deployment due to its lower performance in vehicle drag coefficient analysis using parametric data.
 
 ### References
-Elrefaie, M., Morar, F., Dai, A., and Ahmed, F., "DrivAerNet++: A Large-Scale Multimodal Car Dataset with Computational Fluid Dynamics Simulations and Deep Learning Benchmarks," in *Advances in Neural Information Processing Systems 38 (NeurIPS 2024), Datasets and Benchmarks Track*, 2024. [[proceedings](https://proceedings.neurips.cc/paper_files/paper/2024/hash/013cf29a9e68e4411d0593040a8a1eb3-Abstract-Datasets_and_Benchmarks_Track.html)] [[arXiv:2406.09624](https://arxiv.org/abs/2406.09624)]
+Elrefaie, M., Morar, F., Dai, A., and Ahmed, F., "DrivAerNet++: A Large-Scale Multimodal Car Dataset with Computational Fluid Dynamics Simulations and Deep Learning Benchmarks," in *Advances in Neural Information Processing Systems 38 (NeurIPS 2024), Datasets and Benchmarks Track*, 2024. [[DOI](https://doi.org/10.48550/arXiv.2406.09624)]
 
-Qi, C. R., Su, H., Mo, K., and Guibas, L. J., "PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation," in *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, pp. 652–660, 2017. [[arXiv:1612.00593](https://arxiv.org/abs/1612.00593)]
+Qi, C. R., Su, H., Mo, K., and Guibas, L. J., "PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation," in *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, pp. 652–660, 2017. [[DOI](https://doi.org/10.48550/arXiv.1612.00593)]
 
-Wang, Y., Sun, Y., Liu, Z., Sarma, S. E., Bronstein, M. M., and Solomon, J. M., "Dynamic Graph CNN for Learning on Point Clouds," *ACM Transactions on Graphics*, vol. 38, no. 5, pp. 1–12, 2019. [[arXiv:1801.07829](https://arxiv.org/abs/1801.07829)]
+Wang, Y., Sun, Y., Liu, Z., Sarma, S. E., Bronstein, M. M., and Solomon, J. M., "Dynamic Graph CNN for Learning on Point Clouds," *ACM Transactions on Graphics*, vol. 38, no. 5, pp. 1–12, 2019. [[DOI](https://doi.org/10.48550/arXiv.1801.07829)]
 
-Elrefaie, M., Dai, A., and Ahmed, F., "DrivAerNet: A Parametric Car Dataset for Data-Driven Aerodynamic Design and Graph-Based Drag Prediction," in *Proceedings of the ASME IDETC-CIE*, 2024. [[arXiv:2403.08055](https://arxiv.org/abs/2403.08055)] Cited for the RegDGCNN comparison model.
+Elrefaie, M., Dai, A., and Ahmed, F., "DrivAerNet: A Parametric Car Dataset for Data-Driven Aerodynamic Design and Graph-Based Drag Prediction," in *Proceedings of the ASME IDETC-CIE*, 2024. [[DOI](https://doi.org/10.48550/arXiv.2403.08055)]
 
-Erickson, N., Mueller, J., Shirkov, A., Zhang, H., Larroy, P., Li, M., and Smola, A., "AutoGluon-Tabular: Robust and Accurate AutoML for Structured Data," arXiv preprint, 2020. [[arXiv:2003.06505](https://arxiv.org/abs/2003.06505)]
-
-Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y., "LightGBM: A Highly Efficient Gradient Boosting Decision Tree," in *Advances in Neural Information Processing Systems 30 (NIPS 2017)*, pp. 3146–3154, 2017. [[proceedings](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree)]
+Erickson, N., Mueller, J., Shirkov, A., Zhang, H., Larroy, P., Li, M., and Smola, A., "AutoGluon-Tabular: Robust and Accurate AutoML for Structured Data," arXiv preprint, 2020. [[DOI](
+https://doi.org/10.48550/arXiv.2003.06505)]
