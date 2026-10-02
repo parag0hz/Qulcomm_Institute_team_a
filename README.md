@@ -317,5 +317,4 @@ Wang, Y., Sun, Y., Liu, Z., Sarma, S. E., Bronstein, M. M., and Solomon, J. M., 
 
 Elrefaie, M., Dai, A., and Ahmed, F., "DrivAerNet: A Parametric Car Dataset for Data-Driven Aerodynamic Design and Graph-Based Drag Prediction," in *Proceedings of the ASME IDETC-CIE*, 2024. [[DOI](https://doi.org/10.48550/arXiv.2403.08055)]
 
-Erickson, N., Mueller, J., Shirkov, A., Zhang, H., Larroy, P., Li, M., and Smola, A., "AutoGluon-Tabular: Robust and Accurate AutoML for Structured Data," arXiv preprint, 2020. [[DOI](
-https://doi.org/10.48550/arXiv.2003.06505)]
+Erickson, N., Mueller, J., Shirkov, A., Zhang, H., Larroy, P., Li, M., and Smola, A., "AutoGluon-Tabular: Robust and Accurate AutoML for Structured Data," arXiv preprint, 2020. [[DOI](https://doi.org/10.48550/arXiv.2003.06505)]
