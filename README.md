@@ -283,29 +283,35 @@ npm run test:web       # Vitest
 Released under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license — see [LICENSE](LICENSE). The DrivAerNet++ dataset carries its own terms and must be cited as below when this work is reused.
 
 ## Acknowledgments
-This AI Service Platform was developed as part of the **17th QI AI Entrepreneurship Program – Summer 2026** ([full content](https://www.kaggle.com/code/QualcommInstituteAI/17th-qi-ai-entrepreneurship-program-summer-2026) & [summary record](https://github.com/Qualcomm-Institute-AI/QI-AI-Programs/tree/main/2026/Summer/17th%20QI%20AI%20Entrepreneurship%20Program)), hosted by the Qualcomm Institute (QI), University of California, San Diego (UC San Diego).
+This AI Service Platform was developed as part of the **[17th QI AI Entrepreneurship Program – Summer 2026** (full content)](https://www.kaggle.com/code/QualcommInstituteAI/17th-qi-ai-entrepreneurship-program-summer-2026) & [(summary record)](https://github.com/Qualcomm-Institute-AI/QI-AI-Programs/tree/main/2026/Summer/17th%20QI%20AI%20Entrepreneurship%20Program), hosted by the Qualcomm Institute (QI), University of California, San Diego (UC San Diego).
 
-We would like to express our sincere gratitude to Dr. Seokheon Cho of the Qualcomm Institute for his extensive guidance, supervision, and support throughout the development of this platform.
+We would like to express our sincere gratitude to [Dr. Seokheon Cho](https://www.linkedin.com/in/justin-cho-phd/) of the Qualcomm Institute for his extensive guidance, supervision, and support throughout the development of this platform.
 
 We also acknowledge the following source of research support:
 
 This research was supported by the MSIT (Ministry of Science and ICT), Korea, under the National Program for Excellence in SW (2021-0-01393), supervised by the IITP (Institute of Information & Communications Technology Planning & Evaluation).
 
+This research was supported by the MSIT (Ministry of Science and ICT), Korea, under the National Program for Excellence in SW (2024-0-00062), supervised by the IITP (Institute of Information & Communications Technology Planning & Evaluation) in 2026.
+
 ## Dataset, AI Model & References
-### Dataset
-- **DrivAerNet++** — A large-scale multimodal car dataset of 8,000 designs with high-fidelity CFD simulations, covering fastback, notchback and estateback bodies with varied underbody and wheel configurations. More than 39 TB of engineering data, produced with roughly 3 × 10⁶ CPU-hours on 2,880 cores. Paragon trains on the 7,713 designs that ship with point clouds, and on the 4,165-design parametric CSV for the parameter track. [Elrefaie et al. (2024)]
+
+### Datasets and data sources
+
+- **[DrivAerNet++](https://github.com/Mohamedelrefaie/DrivAerNet)** — Vehicle point clouds, design parameters, and CFD-computed drag coefficients used to train and evaluate our prediction models. [Paper](https://arxiv.org/abs/2406.09624) ·  [Harvard Dataverse](https://dataverse.harvard.edu/dataverse/DrivAerNet)
+- **[PaddleScience / Baidu distribution](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar)** — The DrivAerNet++ distribution providing the .paddle_tensor point clouds, Cd labels, and benchmark splits used in our training pipeline. [Documentation](https://paddlescience.readthedocs.io/en/latest/en/examples/drivaernetplusplus/) · [Repository](https://github.com/PaddlePaddle/PaddleScience/tree/develop/examples/drivaernetplusplus) · [Point-cloud download (8.63 GiB)](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAer%2B%2B_Points.tar) · [Cd labels](https://dataset.bj.bcebos.com/PaddleScience/DNNFluid-Car/DrivAer%2B%2B/DrivAerNetPlusPlus_Drag_8k.csv) · [Setup and split downloads](ml/A100_BOOTSTRAP.md)
 
 ### AI Model
 - **PointNet** — Selected for deployment. Highest accuracy of the four backbones evaluated, and the smallest at 0.81 M parameters, which is what makes CPU serving viable. [Qi et al. (2017)]
 - **DGCNN** — Evaluated (1.80 M parameters); not deployed, lower accuracy than PointNet under identical folds. [Wang et al. (2019)]
-- **RegDGCNN** — The DrivAerNet++ reference architecture, reproduced for comparison (3.16 M parameters); not deployed. [Elrefaie et al. (2024b)]
+- **RegDGCNN** — Introduced in the original DrivAerNet paper and evaluated here on DrivAerNet++ using the authors' implementation (3.16 M parameters); not deployed. [Elrefaie et al. (2024b)]
 - **AutoGluon / LightGBM / RandomForest** — Parameter-track baselines on the 23 design parameters. RandomForest is the deployed parametric surrogate because it serves deterministically with no optional estimator runtime. [Erickson et al. (2020), Ke et al. (2017)]
+- **Google Vertex AI AutoML** — An optional tabular regression service for predicting vehicle drag coefficients (Cd) from design parameters.
 - **LLM: GPT (default `gpt-5-mini`)** — Used only to turn confirmed predictions and dataset statistics into clear explanations, never to produce the prediction itself.
 
 ### References
 Elrefaie, M., Morar, F., Dai, A., and Ahmed, F., "DrivAerNet++: A Large-Scale Multimodal Car Dataset with Computational Fluid Dynamics Simulations and Deep Learning Benchmarks," in *Advances in Neural Information Processing Systems 38 (NeurIPS 2024), Datasets and Benchmarks Track*, 2024. [[proceedings](https://proceedings.neurips.cc/paper_files/paper/2024/hash/013cf29a9e68e4411d0593040a8a1eb3-Abstract-Datasets_and_Benchmarks_Track.html)] [[arXiv:2406.09624](https://arxiv.org/abs/2406.09624)]
 
-Elrefaie, M., Dai, A., and Ahmed, F., "DrivAerNet: A Parametric Car Dataset for Data-Driven Aerodynamic Design and Graph-Based Drag Prediction," in *Proceedings of the ASME IDETC-CIE*, 2024. [[arXiv:2403.08055](https://arxiv.org/abs/2403.08055)]
+Elrefaie, M., Dai, A., and Ahmed, F., "DrivAerNet: A Parametric Car Dataset for Data-Driven Aerodynamic Design and Graph-Based Drag Prediction," in *Proceedings of the ASME IDETC-CIE*, 2024. [[arXiv:2403.08055](https://arxiv.org/abs/2403.08055)] Cited for the RegDGCNN comparison model.
 
 Qi, C. R., Su, H., Mo, K., and Guibas, L. J., "PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation," in *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, pp. 652–660, 2017. [[arXiv:1612.00593](https://arxiv.org/abs/1612.00593)]
 
